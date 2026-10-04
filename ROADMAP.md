@@ -18,6 +18,20 @@ Two ways to get there:
   caching that compiler on first use, like `uv python`. This is more flexible, but sits
   outside uv.lock and needs network access at first use.
 
+## Optional nimporter integration (after the first release)
+
+nimlang does not depend on nimporter for now. The idea is an optional `nimlang[import]`
+extra that gives a dev-time `import foo` for `foo.nim`, compiled through nimlang (zig cc and
+the project's `[tool.nimlang]` dependencies). It would likely be a maintained fork of
+nimporter, with fixes also sent upstream. Problems with upstream today:
+
+- The latest real release is 1.1.0 (November 2021). The 2.0.0 uploaded in March 2022 was a
+  release candidate and was yanked, and master has carried the unreleased 2.0 since July 2023.
+- It doesn't declare setuptools, so `import nimporter` fails in a fresh uv venv on Python 3.12.
+- It pulls in about 28 packages, including cookiecutter and icecream.
+- It compiles with `nimble c --accept` against the global `~/.nimble`, not a project's
+  dependencies.
+
 ## Other items
 
 - **Lock file for Nim dependencies:** record resolved versions/commits of `[tool.nimlang]`
@@ -27,5 +41,3 @@ Two ways to get there:
 - **Editor support:** point nimsuggest/nimlangserver at the venv's Nim and the project's
   dependency paths.
 - **More platforms:** musllinux, Windows arm64, Linux armv7.
-- **Import hook:** an optional dev-time `import foo` for `foo.nim`, the convenience nimporter
-  offered, built on nimlang's toolchain.

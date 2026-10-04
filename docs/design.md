@@ -102,10 +102,11 @@ binaries = ["src/mypkg/mytool.nim"]     # -> `mytool` on PATH
 ### nimpy and nimporter
 
 nimpy is the core dependency for extensions and works well with this approach. nimporter's
-last release was 1.1.0 in March 2022; it compiles at import time or via setuptools and
-expects a C compiler on the user's machine, which is the problem nimlang removes. nimlang does
-not depend on it. Its "import .nim files directly" convenience could be added later as an
-optional dev-time import hook.
+last release is 1.1.0 from November 2021 (a 2.0.0 uploaded in March 2022 was yanked). It
+compiles at import time or via setuptools and expects a C compiler on the user's machine,
+which is the problem nimlang removes, so nimlang does not depend on it. Its "import .nim
+files directly" convenience could come back as an optional import hook built on nimlang's
+toolchain (undecided; see the roadmap).
 
 ## Decisions (2026-10-04)
 

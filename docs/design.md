@@ -119,9 +119,9 @@ optional dev-time import hook.
 
 ## Known gaps and next steps
 
-- **Untested on real macOS and Windows.** The CI workflow runs the tests and the example on
-  all three OSes plus cross-builds; Windows is the most likely to need fixes (the `.cmd` shim).
-  A tiny native `zigcc` executable built per platform would be more robust there.
+- **macOS and Windows** pass CI (unit tests, example wheel built natively, installed and run)
+  using a Nim from PATH; the bundled-wheel path is so far only exercised on Linux. A tiny
+  native `zigcc` executable per platform would be more robust than the `.cmd` shim on Windows.
 - **Release pipeline.** A workflow that downloads/builds Nim per platform, runs
   `make_wheels.py` and publishes to PyPI.
 - **Lock file** for Nim dependencies (see fork 3).

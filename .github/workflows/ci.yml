@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      # Until nimlang platform wheels are published, use a Nim from PATH.
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.2.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Unit tests
+        run: uv run pytest -v
+      - name: Build nimlang (pure wheel, uses Nim from PATH)
+        run: uv build --wheel --out-dir dist
+      - name: Build example package through the hatch hook
+        shell: bash
+        env:
+          UV_FIND_LINKS: ${{ github.workspace }}/dist
+        run: uv build --wheel --out-dir dist-example examples/hello-nim
+      - name: Install and run the example wheel
+        shell: bash
+        run: |
+          uv venv check-env
+          uv pip install --python check-env dist-example/*.whl
+          if [ "$RUNNER_OS" = "Windows" ]; then bin=check-env/Scripts; else bin=check-env/bin; fi
+          $bin/python -c "import hello_nim; print(hello_nim.greet('CI'), hello_nim.fib(20))"
+          $bin/hello_nim_cli CI
+
+  cross:
+    # One Linux machine builds the example wheel for every platform via zig cc.
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-linux-gnu.2.17, aarch64-linux-gnu.2.17, aarch64-macos, x86_64-macos, x86_64-windows-gnu]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.2.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: uv build --wheel --out-dir dist
+      - name: Cross-build example wheel
+        env:
+          UV_FIND_LINKS: ${{ github.workspace }}/dist
+          NIMLANG_TARGET: ${{ matrix.target }}
+        run: |
+          uv build --wheel --out-dir dist-example examples/hello-nim
+          ls dist-example

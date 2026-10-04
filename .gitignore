@@ -1,0 +1,11 @@
+__pycache__/
+*.egg-info/
+.venv/
+dist/
+build/
+.nimlang/
+src/nimlang/nim/
+*.so
+*.pyd
+*.dll
+*.dylib

@@ -1,6 +1,6 @@
 """nimlang: a Nim toolchain for Python projects.
 
-The Nim compiler comes from the ``nimlang-nim`` platform wheels (versioned like Nim)
+The Nim compiler is shipped inside platform wheels (see ``scripts/make_wheels.py``)
 and C compilation is delegated to ``zig cc`` from the ``ziglang`` wheel, so a
 working Nim setup needs nothing but ``uv add nimlang``.
 """

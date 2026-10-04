@@ -1,10 +1,11 @@
-"""Package a Nim binary distribution as a ``nimlang-nim`` platform wheel.
+"""Repackage a Nim binary distribution into a platform wheel of nimlang.
 
-Same approach as ziglang's make_wheels.py: the wheel holds the compiler
-distribution under ``nimlang_nim/nim/`` and its version is the Nim version, so
-projects pick their Nim with ``uv add "nimlang-nim==X.Y.Z"``.
+Same approach as ziglang's make_wheels.py: build the pure-Python nimlang wheel,
+then add the Nim distribution under ``nimlang/nim/`` and retag the wheel for the
+platform the binaries were built for. Each nimlang release bundles one Nim
+version; ``nimlang info`` reports it.
 
-    python scripts/make_nim_wheel.py --nim-dist nim-2.2.6-linux_x64.tar.xz \\
+    python scripts/make_wheels.py --nim-dist nim-2.2.6-linux_x64.tar.xz \\
         --platform-tag manylinux_2_17_x86_64
 
 ``--nim-dist`` accepts an unpacked directory, a .tar.xz/.tar.gz, or a .zip
@@ -29,7 +30,6 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PACKAGE = ROOT / "packages" / "nimlang-nim"
 
 # Tools worth shipping; the rest (testament, nim_dbg, nim-gdb, ...) stays out to keep wheels small.
 KEEP_BIN = {"nim", "nimble", "nimsuggest", "nimpretty", "nimgrep", "atlas"}
@@ -77,7 +77,7 @@ def nim_files(home: Path):
         # Windows builds need their DLLs and cacert.pem (used for HTTPS by nimble) next to the executables.
         if rel.parts[0] == "bin" and path.suffix not in KEEP_BIN_SUFFIXES and path.stem not in KEEP_BIN:
             continue
-        yield f"nimlang_nim/nim/{rel.as_posix()}", path
+        yield f"nimlang/nim/{rel.as_posix()}", path
 
 
 def check_glibc(home: Path, platform_tag: str) -> None:
@@ -104,30 +104,21 @@ def record_hash(data: bytes) -> str:
     return "sha256=" + base64.urlsafe_b64encode(hashlib.sha256(data).digest()).rstrip(b"=").decode()
 
 
-def metadata(version: str, nim: str) -> str:
-    readme = (PACKAGE / "README.md").read_text(encoding="utf-8")
-    return (
-        "Metadata-Version: 2.1\n"
-        "Name: nimlang-nim\n"
-        f"Version: {version}\n"
-        f"Summary: The Nim {nim} compiler, packaged as a wheel for nimlang\n"
-        "License: MIT\n"
-        "Requires-Python: >=3.9\n"
-        "Project-URL: Repository, https://github.com/pietroppeter/uv-add-nimlang\n"
-        "Description-Content-Type: text/markdown\n"
-        f"\n{readme}"
-    )
+def pure_wheel(out: Path) -> Path:
+    subprocess.run(["uv", "build", "--wheel", "--out-dir", str(out), str(ROOT)], check=True)
+    (wheel,) = out.glob("nimlang-*-py3-none-any.whl")
+    return wheel
 
 
-def make_wheel(home: Path, platform_tag: str, out_dir: Path, version: str | None = None) -> Path:
-    nim = nim_version(home)
-    version = version or nim
-    dist_info = f"nimlang_nim-{version}.dist-info"
+def make_wheel(home: Path, platform_tag: str, out_dir: Path, tmp: Path) -> Path:
+    base = pure_wheel(tmp / "pure")
+    name, version = base.name.split("-")[:2]
+    dist_info = f"{name}-{version}.dist-info"
+    target = out_dir / f"{name}-{version}-py3-none-{platform_tag}.whl"
     out_dir.mkdir(parents=True, exist_ok=True)
-    target = out_dir / f"nimlang_nim-{version}-py3-none-{platform_tag}.whl"
 
     records: list[tuple[str, str, int]] = []
-    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as dst:
+    with zipfile.ZipFile(base) as src, zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as dst:
 
         def write(arcname: str, data: bytes, mode: int = 0o644) -> None:
             info = zipfile.ZipInfo(arcname, date_time=(2020, 1, 1, 0, 0, 0))
@@ -136,23 +127,26 @@ def make_wheel(home: Path, platform_tag: str, out_dir: Path, version: str | None
             dst.writestr(info, data)
             records.append((arcname, record_hash(data), len(data)))
 
-        init = (PACKAGE / "nimlang_nim" / "__init__.py").read_text(encoding="utf-8")
-        write("nimlang_nim/__init__.py", init.replace("@NIM_VERSION@", nim).encode())
+        for item in src.infolist():
+            if item.filename == f"{dist_info}/RECORD":
+                continue
+            data = src.read(item)
+            if item.filename == f"{dist_info}/WHEEL":
+                text = data.decode()
+                text = text.replace("Root-Is-Purelib: true", "Root-Is-Purelib: false")
+                text = text.replace("Tag: py3-none-any", f"Tag: py3-none-{platform_tag}")
+                data = text.encode()
+            write(item.filename, data, (item.external_attr >> 16) & 0o777 or 0o644)
+
         for arcname, path in nim_files(home):
-            executable = arcname.startswith("nimlang_nim/nim/bin/")
+            executable = arcname.startswith("nimlang/nim/bin/")
             write(arcname, path.read_bytes(), 0o755 if executable else 0o644)
-        write(f"{dist_info}/METADATA", metadata(version, nim).encode())
-        wheel = (
-            "Wheel-Version: 1.0\nGenerator: nimlang make_nim_wheel.py\n"
-            f"Root-Is-Purelib: false\nTag: py3-none-{platform_tag}\n"
-        )
-        write(f"{dist_info}/WHEEL", wheel.encode())
 
         buf = io.StringIO()
         writer = csv.writer(buf, lineterminator="\n")
         writer.writerows(records)
         writer.writerow([f"{dist_info}/RECORD", "", ""])
-        dst.writestr(f"{dist_info}/RECORD", buf.getvalue())
+        write(f"{dist_info}/RECORD", buf.getvalue().encode())
     return target
 
 
@@ -162,14 +156,14 @@ def main() -> None:
     p.add_argument(
         "--platform-tag", required=True, help="e.g. manylinux_2_17_x86_64, macosx_11_0_arm64, win_amd64"
     )
-    p.add_argument("--version", help="wheel version (default: the Nim version; use X.Y.Z.postN for repacks)")
     p.add_argument("--out-dir", type=Path, default=ROOT / "dist")
     ns = p.parse_args()
     with tempfile.TemporaryDirectory() as tmp:
         home = unpack(ns.nim_dist.resolve(), Path(tmp) / "nim")
         check_glibc(home, ns.platform_tag)
-        wheel = make_wheel(home, ns.platform_tag, ns.out_dir.resolve(), ns.version)
-    print(f"built {wheel} ({wheel.stat().st_size / 1e6:.1f} MB)")
+        nim = nim_version(home)
+        wheel = make_wheel(home, ns.platform_tag, ns.out_dir.resolve(), Path(tmp))
+    print(f"built {wheel} with Nim {nim} ({wheel.stat().st_size / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":

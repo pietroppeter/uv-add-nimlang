@@ -2,9 +2,9 @@
 
 Use [Nim](https://nim-lang.org) in a Python project with nothing but uv.
 
-`nimlang` brings the Nim compiler as a wheel (`nimlang-nim`, versioned like Nim) and compiles C
-through `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no
-system Nim and no C compiler.
+`nimlang` is a Python package that ships the Nim compiler in its wheels and compiles C through
+`zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no system
+Nim and no C compiler.
 
 > Status: early scaffold, not on PyPI yet. See [docs/design.md](docs/design.md) for what works
 > and what is planned.
@@ -16,8 +16,7 @@ uv add nimlang
 uv run nim c -r hello.nim          # nim and nimble live in your venv
 uv run nimlang add nimpy           # tracked in [tool.nimlang] in pyproject.toml
 uv run nimlang build-ext fast.nim  # build a nimpy extension module next to fast.nim
-uv run nimlang info                # Nim version and where everything lives
-uv add "nimlang-nim==2.2.4"        # pin this project to a specific Nim
+uv run nimlang info                # bundled Nim version and where everything lives
 ```
 
 ## Ship Nim code in a Python package
@@ -39,12 +38,14 @@ dependencies = ["nimpy"]
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
 cross-builds for other platforms. See [examples/hello-nim](examples/hello-nim).
 
-## Building the compiler wheels
+## Building nimlang wheels
 
 ```sh
-python scripts/make_nim_wheel.py --nim-dist nim-2.2.6-linux_x64.tar.xz --platform-tag manylinux_2_17_x86_64
+python scripts/make_wheels.py --nim-dist nim-2.2.6-linux_x64.tar.xz --platform-tag manylinux_2_17_x86_64
 ```
 
 CI builds them for Linux (x86_64, aarch64), macOS (arm64, x86_64) and Windows x86_64, and
-publishes `nimlang` and `nimlang-nim` to PyPI when a `v*` tag is pushed. Until `nimlang-nim` is
-on PyPI, point uv at locally built wheels with `UV_FIND_LINKS=dist`, or set `NIMLANG_NIM_HOME`.
+publishes to PyPI when a `v*` tag is pushed. For development without a bundled Nim, set
+`NIMLANG_NIM_HOME` or put `nim` on `PATH`.
+
+What's next: [ROADMAP.md](ROADMAP.md).

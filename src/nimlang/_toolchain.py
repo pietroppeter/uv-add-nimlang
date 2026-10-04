@@ -5,14 +5,13 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import sysconfig
 from pathlib import Path
 
-PKG_DIR = Path(__file__).resolve().parent
-BUNDLED_NIM = PKG_DIR / "nim"
 EXE = ".exe" if os.name == "nt" else ""
 
 # zig target arch/os -> Nim --cpu/--os
@@ -44,11 +43,21 @@ def _is_nim_home(path: Path) -> bool:
     return (path / "bin" / f"nim{EXE}").is_file() and (path / "lib" / "system.nim").is_file()
 
 
+def _bundled_home() -> Path | None:
+    try:
+        import nimlang_nim
+    except ImportError:
+        return None
+    home = Path(nimlang_nim.NIM_HOME)
+    return home if _is_nim_home(home) else None
+
+
 def nim_home() -> Path:
     """Root of the Nim distribution (the directory holding ``bin/`` and ``lib/``).
 
-    Lookup order: ``$NIMLANG_NIM_HOME``, the distribution bundled in the wheel,
-    then a ``nim`` found on ``PATH`` (skipping nimlang's own ``nim`` shim).
+    Lookup order: ``$NIMLANG_NIM_HOME``, the ``nimlang-nim`` package (the compiler
+    wheel, versioned like Nim), then a ``nim`` found on ``PATH`` (skipping nimlang's
+    own ``nim`` shim).
     """
     env = os.environ.get("NIMLANG_NIM_HOME")
     if env:
@@ -56,8 +65,9 @@ def nim_home() -> Path:
         if not _is_nim_home(home):
             raise NimlangError(f"NIMLANG_NIM_HOME={env} does not contain bin/nim and lib/system.nim")
         return home
-    if _is_nim_home(BUNDLED_NIM):
-        return BUNDLED_NIM
+    bundled = _bundled_home()
+    if bundled is not None:
+        return bundled
     scripts = _scripts_dir()
     for entry in os.environ.get("PATH", "").split(os.pathsep):
         if not entry or Path(entry).resolve() == scripts:
@@ -71,8 +81,8 @@ def nim_home() -> Path:
             if home and _is_nim_home(home):
                 return home
     raise NimlangError(
-        "No Nim compiler found. This nimlang install has no bundled Nim "
-        "(source or pure-Python build); set NIMLANG_NIM_HOME or put nim on PATH."
+        "No Nim compiler found: nimlang-nim is not installed (or has no build for this "
+        "platform); set NIMLANG_NIM_HOME or put nim on PATH."
     )
 
 
@@ -92,6 +102,18 @@ def _ask_prefix(nim: Path) -> Path | None:
 
 def nim_exe() -> Path:
     return nim_home() / "bin" / f"nim{EXE}"
+
+
+def nim_version(home: Path | None = None) -> str:
+    """Version of the Nim distribution, read from its stdlib (works for any platform's build)."""
+    source = (home or nim_home()) / "lib" / "system" / "compilation.nim"
+    parts = {}
+    for name in ("NimMajor", "NimMinor", "NimPatch"):
+        match = re.search(rf"{name}\*.*?=\s*(\d+)", source.read_text(encoding="utf-8"))
+        if not match:
+            raise NimlangError(f"cannot read {name} from {source}")
+        parts[name] = match.group(1)
+    return ".".join(parts.values())
 
 
 def nimble_exe() -> Path:

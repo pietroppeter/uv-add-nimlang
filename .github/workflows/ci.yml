@@ -3,31 +3,129 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
+
+env:
+  # Nim version packaged as nimlang-nim. Add versions here (and to the matrices
+  # below) to publish more of them side by side.
+  NIM_VERSION: "2.2.6"
 
 jobs:
-  test:
+  # Official Nim release binaries, repackaged.
+  nim-official:
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - archive: linux_x64.tar.xz
+            tag: manylinux_2_17_x86_64
+          - archive: windows_x64.zip
+            tag: win_amd64
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      # Until nimlang platform wheels are published, use a Nim from PATH.
-      - uses: jiro4989/setup-nim-action@v2
+      - id: cache
+        uses: actions/cache@v4
         with:
-          nim-version: "2.2.x"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Unit tests
+          path: wheelhouse
+          key: nim-${{ env.NIM_VERSION }}-${{ matrix.tag }}-${{ hashFiles('scripts/make_nim_wheel.py', 'packages/nimlang-nim/**') }}
+      - name: Download and repackage Nim ${{ env.NIM_VERSION }}
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          case "${{ matrix.archive }}" in
+            windows_x64.zip) url="https://nim-lang.org/download/nim-${NIM_VERSION}_x64.zip" ;;
+            *) url="https://nim-lang.org/download/nim-${NIM_VERSION}-${{ matrix.archive }}" ;;
+          esac
+          curl -fsSL -o "nim-dist-${{ matrix.archive }}" "$url"
+          uv run --no-project python scripts/make_nim_wheel.py \
+            --nim-dist "nim-dist-${{ matrix.archive }}" --platform-tag ${{ matrix.tag }} --out-dir wheelhouse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nim-wheel-${{ matrix.tag }}
+          path: wheelhouse/*.whl
+
+  # No official binaries for these platforms: build Nim from its source release.
+  nim-source:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            tag: macosx_11_0_arm64
+            deployment-target: "11.0"
+          - os: macos-15-intel
+            tag: macosx_10_13_x86_64
+            deployment-target: "10.13"
+          - os: ubuntu-24.04-arm
+            tag: manylinux_2_17_aarch64
+            # Link against glibc 2.17 with zig cc so the binaries are manylinux-compatible.
+            zig-target: aarch64-linux-gnu.2.17
+    env:
+      MACOSX_DEPLOYMENT_TARGET: ${{ matrix.deployment-target }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - id: cache
+        uses: actions/cache@v4
+        with:
+          path: wheelhouse
+          key: nim-${{ env.NIM_VERSION }}-${{ matrix.tag }}-${{ hashFiles('scripts/make_nim_wheel.py', 'packages/nimlang-nim/**') }}
+      - name: Build Nim ${{ env.NIM_VERSION }} from source
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o nim-src.tar.xz "https://nim-lang.org/download/nim-${NIM_VERSION}.tar.xz"
+          tar xf nim-src.tar.xz
+          flags=""
+          if [ -n "${{ matrix.zig-target }}" ]; then
+            uv venv zigenv && uv pip install --python zigenv ziglang
+            printf '#!/bin/sh\nexec "%s" -m ziglang cc "$@"\n' "$PWD/zigenv/bin/python" > zigcc && chmod +x zigcc
+            t="${{ matrix.zig-target }}"
+            flags="--cc:clang --clang.exe:$PWD/zigcc --clang.linkerexe:$PWD/zigcc --passC:--target=$t --passL:--target=$t"
+          fi
+          cd "nim-${NIM_VERSION}"
+          sh build.sh
+          bin/nim c -d:release koch
+          ./koch boot -d:release $flags
+          ./koch tools -d:release $flags
+          bin/nim --version
+      - name: Package as nimlang-nim wheel
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          uv run --no-project python scripts/make_nim_wheel.py \
+            --nim-dist "nim-${NIM_VERSION}" --platform-tag ${{ matrix.tag }} --out-dir wheelhouse
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nim-wheel-${{ matrix.tag }}
+          path: wheelhouse/*.whl
+
+  test:
+    needs: [nim-official, nim-source]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-14, macos-15-intel, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      UV_FIND_LINKS: ${{ github.workspace }}/wheelhouse
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nim-wheel-*
+          path: wheelhouse
+          merge-multiple: true
+      - name: Unit tests (with the nimlang-nim compiler wheel)
         run: uv run pytest -v
-      - name: Build nimlang (pure wheel, uses Nim from PATH)
-        run: uv build --wheel --out-dir dist
+      - name: nimlang info
+        run: uv run nimlang info
+      - name: Build nimlang
+        run: uv build --wheel --out-dir wheelhouse
       - name: Build example package through the hatch hook
-        shell: bash
-        env:
-          UV_FIND_LINKS: ${{ github.workspace }}/dist
         run: uv build --wheel --out-dir dist-example examples/hello-nim
       - name: Install and run the example wheel
         shell: bash
@@ -40,23 +138,47 @@ jobs:
 
   cross:
     # One Linux machine builds the example wheel for every platform via zig cc.
+    needs: [nim-official]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         target: [x86_64-linux-gnu.2.17, aarch64-linux-gnu.2.17, aarch64-macos, x86_64-macos, x86_64-windows-gnu]
+    env:
+      UV_FIND_LINKS: ${{ github.workspace }}/wheelhouse
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - uses: jiro4989/setup-nim-action@v2
+      - uses: actions/download-artifact@v4
         with:
-          nim-version: "2.2.x"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: uv build --wheel --out-dir dist
+          pattern: nim-wheel-*
+          path: wheelhouse
+          merge-multiple: true
+      - run: uv build --wheel --out-dir wheelhouse
       - name: Cross-build example wheel
         env:
-          UV_FIND_LINKS: ${{ github.workspace }}/dist
           NIMLANG_TARGET: ${{ matrix.target }}
         run: |
           uv build --wheel --out-dir dist-example examples/hello-nim
           ls dist-example
+
+  publish:
+    # Tag vX.Y.Z to release nimlang; nimlang-nim wheels already on PyPI are skipped.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, cross]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: nim-wheel-*
+          path: dist
+          merge-multiple: true
+      - run: uv build --out-dir dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

@@ -6,6 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 dependencies = [
+    "nimlang-nim>=2.0",
     "ziglang>=0.13",
     "tomlkit>=0.12",
 ]
@@ -31,9 +32,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/nimlang"]
-# The Nim distribution is injected by scripts/make_wheels.py into platform wheels;
-# a local checkout may have one unpacked under src/nimlang/nim for testing.
-exclude = ["src/nimlang/nim"]
 
 [dependency-groups]
 dev = ["pytest>=8", "hatchling"]

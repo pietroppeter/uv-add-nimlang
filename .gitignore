@@ -9,3 +9,4 @@ src/nimlang/nim/
 *.pyd
 *.dll
 *.dylib
+uv.lock

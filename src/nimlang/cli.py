@@ -14,6 +14,7 @@ from nimlang._toolchain import (
     cc_args,
     nim_exe,
     nim_home,
+    nim_version,
     zig_exe,
     zigcc_shim,
 )
@@ -101,7 +102,7 @@ def cmd_build_bin(ns: argparse.Namespace) -> int:
 def cmd_info(ns: argparse.Namespace) -> int:
     root = _project.find_root()
     rows = [
-        ("nim home", nim_home()),
+        ("nim", f"{nim_version()} at {nim_home()}"),
         ("zig", zig_exe()),
         ("zigcc shim", zigcc_shim()),
         ("project", root or "(none)"),

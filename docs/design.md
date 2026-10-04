@@ -27,17 +27,35 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 
 ## Architecture
 
-### 1. The toolchain wheel (`nimlang`)
+### 1. Two packages: `nimlang` and `nimlang-nim`
 
-Same trick as [ziglang](https://pypi.org/project/ziglang/): a Python package whose platform
-wheels contain a compiler distribution. `scripts/make_wheels.py` builds the pure-Python wheel
-and injects a Nim distribution (`bin/`, `lib/`, `config/`) under `nimlang/nim/`, retagged as
-`py3-none-<platform>`. Only `nim`, `nimble`, `nimsuggest`, `nimpretty`, `nimgrep` and `atlas`
-are kept from `bin/`.
+- **`nimlang`** is pure Python (the CLI, the zig cc wiring, the build hook) with its own
+  version numbers. It depends on `nimlang-nim` and `ziglang`.
+- **`nimlang-nim`** is the compiler, the same trick as
+  [ziglang](https://pypi.org/project/ziglang/): platform wheels holding a Nim distribution
+  (`bin/`, `lib/`, `config/`) under `nimlang_nim/nim/`, versioned exactly like Nim.
+  `scripts/make_nim_wheel.py` builds them; only `nim`, `nimble`, `nimsuggest`, `nimpretty`,
+  `nimgrep` and `atlas` (plus DLLs on Windows) are kept from `bin/`. For manylinux tags it
+  checks the binaries' glibc symbol versions against the tag.
 
-Lookup order for the compiler: `$NIMLANG_NIM_HOME`, the bundled distribution, then a `nim` on
-`PATH` (choosenim-style proxies are resolved with `nim dump`). The fallbacks keep source
-checkouts and CI usable before wheels are published.
+So each project picks its Nim the way it picks any dependency, and uv.lock pins it:
+
+```sh
+uv add nimlang                        # latest Nim
+uv add "nimlang-nim==2.2.4"           # this project stays on Nim 2.2.4
+```
+
+Several Nim versions can be published side by side (add them to `NIM_VERSION` in CI), and
+different projects on one machine use different ones. A repackaging fix for the same Nim
+uses a post release (`2.2.6.post1`).
+
+Where the binaries come from: official Nim release builds where they exist (Linux x86_64,
+Windows x86_64), built from the source release elsewhere (macOS arm64 and x86_64 natively;
+Linux aarch64 linked against glibc 2.17 with zig cc).
+
+Lookup order for the compiler: `$NIMLANG_NIM_HOME`, the `nimlang-nim` package, then a `nim`
+on `PATH` (choosenim-style proxies are resolved with `nim dump`). `nimlang info` shows which
+Nim version is in use.
 
 `ziglang` is a regular dependency, so the C compiler arrives with the same `uv add`.
 
@@ -99,31 +117,22 @@ expects a C compiler on the user's machine, which is the problem nimlang removes
 not depend on it. Its "import .nim files directly" convenience could be added later as an
 optional dev-time import hook.
 
-## Design forks (recommended default first)
+## Decisions (2026-10-04)
 
-1. **Where Nim binaries come from.** *Recommended:* repackage the official release tarballs
-   where they exist (Linux x86_64, Windows x86_64) and build from source with zig cc for the
-   rest (macOS arm64/x86_64, Linux aarch64). Alternative: build every platform from source
-   with zig in one Linux job (uniform and manylinux-controlled, but not the bits Nim users
-   already trust).
-2. **Versioning.** *Recommended:* mirror Nim's version (`nimlang 2.2.6` ships Nim 2.2.6), with
-   `.postN` for packaging fixes, like ziglang. Users pin Nim with `uv add nimlang==2.2.6`.
-3. **Source of truth for Nim deps.** *Recommended:* `[tool.nimlang]` in pyproject.toml (one
-   file for Python users). Alternative: a regular `.nimble` file that nimlang reads. A lock
-   file is not implemented yet; the likely route is recording resolved versions/commits next
-   to `uv.lock`.
-4. **Build integration.** *Recommended:* the hatchling hook (small, reuses hatch's wheel
-   logic). Alternative: a dedicated PEP 517 backend, more work for little gain right now.
-5. **PyPI name.** `nimlang` is free on PyPI today (checked 2026-10-04). Worth reserving with
-   a first release soon.
+1. **Nim binaries:** official release builds where they exist, source builds elsewhere.
+2. **Versioning:** `nimlang` has its own versions; the compiler is versioned like Nim in
+   `nimlang-nim`, which also lets each project choose its Nim version.
+3. **Nim dependencies:** `[tool.nimlang]` in pyproject.toml. A lock file is not implemented
+   yet; the likely route is recording resolved versions/commits next to `uv.lock`.
+4. **Build integration:** the hatchling hook (a dedicated PEP 517 backend is more work for
+   little gain right now).
+5. **PyPI:** reserve `nimlang` and `nimlang-nim` with an early release, published from CI
+   through trusted publishing when a `v*` tag is pushed.
 
 ## Known gaps and next steps
 
-- **macOS and Windows** pass CI (unit tests, example wheel built natively, installed and run)
-  using a Nim from PATH; the bundled-wheel path is so far only exercised on Linux. A tiny
-  native `zigcc` executable per platform would be more robust than the `.cmd` shim on Windows.
-- **Release pipeline.** A workflow that downloads/builds Nim per platform, runs
-  `make_wheels.py` and publishes to PyPI.
+- A tiny native `zigcc` executable per platform would be more robust than the `.cmd` shim on
+  Windows.
 - **Lock file** for Nim dependencies (see fork 3).
 - **`nimlang init`** to scaffold a mixed Python/Nim project, and editor support (nimsuggest
   from the venv).

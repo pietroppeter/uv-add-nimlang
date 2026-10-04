@@ -109,3 +109,13 @@ def test_compile_and_run(project):
     (project / "hello.nim").write_text('echo "hello from nim"\n')
     exe = build_binary(project / "hello.nim")
     assert subprocess.run([str(exe)], capture_output=True, text=True).stdout == "hello from nim\n"
+
+
+def test_nim_version(tmp_path):
+    system = tmp_path / "lib" / "system"
+    system.mkdir(parents=True)
+    (system / "compilation.nim").write_text(
+        "const\n  NimMajor* {.intdefine.}: int = 2\n  NimMinor* {.intdefine.}: int = 2\n"
+        "  NimPatch* {.intdefine.}: int = 6\n"
+    )
+    assert _toolchain.nim_version(tmp_path) == "2.2.6"

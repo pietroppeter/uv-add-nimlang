@@ -1,0 +1,45 @@
+[project]
+name = "nimlang"
+version = "0.0.1"
+description = "Use Nim in your Python project: `uv add nimlang` gives you a Nim toolchain that compiles with zig cc."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+dependencies = [
+    "ziglang>=0.13",
+    "tomlkit>=0.12",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Compilers",
+]
+
+[project.urls]
+Repository = "https://github.com/pietroppeter/uv-add-nimlang"
+
+[project.scripts]
+nimlang = "nimlang.cli:main"
+nim = "nimlang.cli:nim_main"
+nimble = "nimlang.cli:nimble_main"
+
+[project.entry-points.hatch]
+nimlang = "nimlang.hatch_hook"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nimlang"]
+# The Nim distribution is injected by scripts/make_wheels.py into platform wheels;
+# a local checkout may have one unpacked under src/nimlang/nim for testing.
+exclude = ["src/nimlang/nim"]
+
+[dependency-groups]
+dev = ["pytest>=8", "hatchling"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110

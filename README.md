@@ -30,34 +30,22 @@ proc fib(n: int): int {.exportpy.} =
 `slow.py`, the same function in Python:
 
 ```python
-import time
-
-
 def fib(n):
     return n if n < 2 else fib(n - 1) + fib(n - 2)
-
-
-start = time.perf_counter()
-print(f"Python: fib(35) = {fib(35)} in {time.perf_counter() - start:.3f}s")
 ```
 
-`fast.py`, calling the Nim version:
+`fast.py`, the Nim version:
 
 ```python
-import time
-
 from nimfib import fib  # the extension module built from nimfib.nim
-
-start = time.perf_counter()
-print(f"Nim:    fib(35) = {fib(35)} in {time.perf_counter() - start:.3f}s")
 ```
 
-Build the extension and compare:
+Build the extension and compare them with `timeit`:
 
 ```sh
 uv run nimlang build-ext nimfib.nim   # writes nimfib.<python-tag>.so (.pyd on Windows) next to it
-uv run slow.py
-uv run fast.py
+uv run python -m timeit -s "from slow import fib" "fib(30)"   # 2 loops, best of 5: 135 msec per loop
+uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best of 5: 10.6 msec per loop
 ```
 
 To try the latest code instead, `uv add "nimlang @ git+https://github.com/pietroppeter/uv-add-nimlang"`.

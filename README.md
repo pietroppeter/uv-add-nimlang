@@ -6,6 +6,10 @@ Use [Nim](https://nim-lang.org) in a Python project with nothing but uv.
 `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no system
 Nim and no C compiler.
 
+[nimpy](https://github.com/yglukhov/nimpy) is the core Nim dependency: it is the binding
+library that exports Nim procs to Python (`{.exportpy.}`) and lets Nim call Python. Every
+Nim extension module built with nimlang uses it.
+
 > AI disclosure: this project is mostly vibed. Currently [level 7](https://www.visidata.org/blog/2026/ai/#level-6%3A-bots-coded%2C-human-understands-mostly) on visidata AI scale: Human specced, bots coded.
 
 > Status: alpha. Ideas for evolution: [ROADMAP.md](ROADMAP.md).
@@ -124,6 +128,24 @@ dependencies = ["nimpy"]
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
 cross-builds for other platforms. The demo's CI builds all five platform wheels on one Linux
 machine and tests each on its own OS.
+
+## Related projects
+
+- [nimpy](https://github.com/yglukhov/nimpy): Nim-Python bindings, the core dependency of
+  every extension module (`nimlang add nimpy`).
+- [nimpy_numpy](https://github.com/pietroppeter/nimpy-numpy): numpy array interop on top of
+  nimpy, registered in the Nim package list (`nimlang add nimpy_numpy`).
+
+Experiments in shipping Nim code to Python with nimlang:
+
+- [uv-add-nimlang-lib-demo](https://github.com/pietroppeter/uv-add-nimlang-lib-demo): minimal
+  package published on PyPI as `nimlang-lib-demo`, with prebuilt wheels for five platforms.
+- [nimpy-numpy](https://github.com/pietroppeter/nimpy-numpy): its tests and benchmark build Nim
+  extensions with nimlang (a Vandermonde matrix, standard vs contiguous fast path, against numpy).
+- [not1d](https://github.com/pietroppeter/not1d): a minimal Nim port of
+  [ot1d](https://github.com/stegua/ot1d) (1D optimal transport), as a test of a non-trivial
+  algorithm and of the C++ backend (an optional build uses C++ pdqsort). Not on PyPI; install
+  it from git.
 
 ## Building nimlang wheels
 

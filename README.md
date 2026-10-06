@@ -20,13 +20,19 @@ uv run nimlang add nimpy            # Nim deps go in [tool.nimlang] in pyproject
 uv run nimlang info                 # bundled Nim and zig, and the project's Nim deps
 ```
 
-Write `nimfib.nim`:
+`nimfib.nim`, write a function in Nim:
 
 ```nim
 import nimpy
 
 proc fib(n: int): int {.exportpy.} =
   if n < 2: n else: fib(n - 1) + fib(n - 2)
+```
+
+`fast.py`, use it in Python:
+
+```python
+from nimfib import fib  # the extension module built from nimfib.nim
 ```
 
 `slow.py`, the same function in Python:
@@ -36,28 +42,12 @@ def fib(n):
     return n if n < 2 else fib(n - 1) + fib(n - 2)
 ```
 
-`fast.py`, the Nim version:
-
-```python
-from nimfib import fib  # the extension module built from nimfib.nim
-```
-
 Build the extension and compare them with `timeit`:
 
 ```sh
 uv run nimlang build-ext nimfib.nim   # writes nimfib.<python-tag>.so (.pyd on Windows) next to it
 uv run python -m timeit -s "from slow import fib" "fib(30)"   # 2 loops, best of 5: 135 msec per loop
 uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best of 5: 10.6 msec per loop
-```
-
-## Use Nim in your project
-
-```sh
-uv add nimlang
-uv run nim c -r hello.nim          # nim and nimble live in your venv
-uv run nimlang add nimpy           # tracked in [tool.nimlang] in pyproject.toml
-uv run nimlang build-ext fast.nim  # build a nimpy extension module next to fast.nim
-uv run nimlang info                # bundled Nim version and where everything lives
 ```
 
 ## Ship Nim code in a Python package
@@ -79,7 +69,7 @@ dependencies = ["nimpy"]
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
 cross-builds for other platforms. See [examples/hello-nim](examples/hello-nim).
 
-> disclsoure: have not tested this yet
+> disclosure: have not tested this yet
 
 ## Building nimlang wheels
 

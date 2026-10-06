@@ -120,8 +120,7 @@ dependencies = ["nimpy"]
 `uv build` produces a `py3-none-<platform>` wheel that works on every CPython 3 version.
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
 cross-builds for other platforms. The demo's CI builds all five platform wheels on one Linux
-machine and tests each on its own OS. [examples/hello-nim](examples/hello-nim) also shows a
-Nim executable shipped in the wheel.
+machine and tests each on its own OS.
 
 ## Building nimlang wheels
 

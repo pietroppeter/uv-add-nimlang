@@ -128,7 +128,7 @@ jobs:
       - name: nimlang info
         run: $BIN/nimlang info
       - name: Build example package through the hatch hook
-        run: uv build --wheel --out-dir dist-example examples/hello-nim
+        run: uv build --wheel --out-dir dist-example tests/hello-nim
       - name: Install and run the example wheel
         run: |
           uv pip install --python check-env dist-example/*.whl
@@ -157,7 +157,7 @@ jobs:
         env:
           NIMLANG_TARGET: ${{ matrix.target }}
         run: |
-          uv build --wheel --out-dir dist-example examples/hello-nim
+          uv build --wheel --out-dir dist-example tests/hello-nim
           ls dist-example
 
   sdist:

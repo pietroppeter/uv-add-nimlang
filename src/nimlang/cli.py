@@ -78,11 +78,15 @@ def cmd_remove(ns: argparse.Namespace) -> int:
     root = _require_root()
     deps = _project.remove_deps(root, ns.packages)
     print(f"nimlang: Nim dependencies: {', '.join(deps) or '(none)'}")
-    return 0
+    return 0 if ns.no_sync else _project.sync(root)
 
 
 def cmd_sync(ns: argparse.Namespace) -> int:
     return _project.sync(_require_root())
+
+
+def cmd_lock(ns: argparse.Namespace) -> int:
+    return _project.lock(_require_root())
 
 
 def cmd_build_ext(ns: argparse.Namespace) -> int:
@@ -110,6 +114,8 @@ def cmd_info(ns: argparse.Namespace) -> int:
     if root:
         rows.append(("nim deps", ", ".join(_project.read_deps(root)) or "(none)"))
         rows.append(("installed", ", ".join(sorted(_project.installed_packages(root))) or "(none)"))
+        lock = root / _project.LOCK_FILE
+        rows.append(("lock file", lock if lock.is_file() else "(none)"))
     for key, value in rows:
         print(f"{key:>11}: {value}")
     return 0
@@ -126,10 +132,16 @@ def _parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("remove", help="remove Nim dependencies from pyproject.toml")
     s.add_argument("packages", nargs="+")
+    s.add_argument("--no-sync", action="store_true", help="only edit pyproject.toml")
     s.set_defaults(func=cmd_remove)
 
-    s = sub.add_parser("sync", help="install the Nim dependencies declared in pyproject.toml")
+    s = sub.add_parser("sync", help=f"install the Nim dependencies pinned in {_project.LOCK_FILE}")
     s.set_defaults(func=cmd_sync)
+
+    s = sub.add_parser(
+        "lock", help=f"resolve the Nim dependencies again (newest allowed versions) into {_project.LOCK_FILE}"
+    )
+    s.set_defaults(func=cmd_lock)
 
     for name, func, help_ in (
         ("build-ext", cmd_build_ext, "compile .nim files into Python extension modules (nimpy)"),

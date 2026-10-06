@@ -82,7 +82,7 @@ class NimlangBuildHook(BuildHookInterface):
         binaries = [root / p for p in self.config.get("binaries", [])]
         if not extensions and not binaries:
             return
-        if _project.missing_deps(root) and _project.sync(root) != 0:
+        if _project.read_deps(root) and _project.sync(root) != 0:
             raise NimlangError("installing the Nim dependencies from [tool.nimlang] failed")
         target = os.environ.get("NIMLANG_TARGET") or self.config.get("target") or default_target()
 

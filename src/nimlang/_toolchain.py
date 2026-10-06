@@ -114,6 +114,13 @@ def nimble_exe() -> Path:
     return path
 
 
+def atlas_exe() -> Path:
+    path = nim_home() / "bin" / f"atlas{EXE}"
+    if not path.is_file():
+        raise NimlangError(f"atlas not found next to nim in {path.parent}")
+    return path
+
+
 def zig_exe() -> Path:
     try:
         import ziglang

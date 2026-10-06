@@ -34,8 +34,8 @@ nimporter, with fixes also sent upstream. Problems with upstream today:
 
 ## Other items
 
-- **Lock file for Nim dependencies:** record resolved versions/commits of `[tool.nimlang]`
-  dependencies next to uv.lock.
+- **Keep locked versions when requirements change:** today adding a Nim dependency
+  re-resolves all of them to the newest allowed versions (atlas has no "keep what's locked").
 - **Native `zigcc` shim on Windows:** a tiny executable instead of the `.cmd` file.
 - **`nimlang init`:** scaffold a mixed Python/Nim project (nimpy module, build hook, tests).
 - **Editor support:** point nimsuggest/nimlangserver at the venv's Nim and the project's

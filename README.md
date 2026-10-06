@@ -58,6 +58,17 @@ uv run nim --version # 2.2.6
 uv run nimble --version # 0.20.1
 ```
 
+## Nim dependencies
+
+```sh
+uv run nimlang add nimpy   # adds it to [tool.nimlang] in pyproject.toml and installs it
+uv run nimlang sync        # installs exactly what nimlang.lock pins (commit it)
+uv run nimlang lock        # resolves again to the newest allowed versions
+```
+
+Packages are fetched with [atlas](https://github.com/nim-lang/atlas) (bundled with Nim) into
+`.nimlang/`, and builds through nimlang see only those, never `~/.nimble`.
+
 ## Ship Nim code in a Python package
 
 > disclosure: have not tested this yet

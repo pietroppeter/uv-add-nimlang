@@ -167,7 +167,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      id-token: write
+      contents: read  # setting any permission drops the rest, and checkout needs this
+      id-token: write  # PyPI trusted publishing
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6

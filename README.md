@@ -49,13 +49,12 @@ uv run python -m timeit -s "from slow import fib" "fib(30)"   # 2 loops, best of
 uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best of 5: 10.6 msec per loop
 ```
 
-## nim and nimble available
+## nim available
 
-Currently ships fixed nim and nimble versions
+Currently ships a fixed nim version
 
 ```sh
 uv run nim --version # 2.2.6
-uv run nimble --version # 0.20.1
 ```
 
 ## Nim dependencies

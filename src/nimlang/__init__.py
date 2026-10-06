@@ -11,7 +11,6 @@ from nimlang._toolchain import (
     nim_exe,
     nim_home,
     nim_version,
-    nimble_exe,
     zig_exe,
     zigcc_shim,
 )
@@ -24,7 +23,6 @@ __all__ = [
     "nim_exe",
     "nim_home",
     "nim_version",
-    "nimble_exe",
     "zig_exe",
     "zigcc_shim",
 ]

@@ -2,7 +2,7 @@
 
 Goal: `uv add nimlang` is all a Python project needs to start using Nim.
 
-- `nim` and `nimble` work inside the project (`uv run nim c -r app.nim`), with no system C compiler.
+- `nim` works inside the project (`uv run nim c -r app.nim`), with no system C compiler.
 - Nim dependencies are declared in `pyproject.toml` (`nimlang add nimpy`) and pinned in
   `nimlang.lock`.
 - A package can ship Nim-built extension modules and executables in ordinary wheels,
@@ -34,7 +34,7 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 Same trick as [ziglang](https://pypi.org/project/ziglang/): a Python package whose platform
 wheels contain a compiler distribution. `scripts/make_wheels.py` builds the pure-Python wheel
 and injects a Nim distribution (`bin/`, `lib/`, `config/`) under `nimlang/nim/`, retagged as
-`py3-none-<platform>`. Only `nim`, `nimble`, `nimsuggest`, `nimpretty`, `nimgrep` and `atlas`
+`py3-none-<platform>`. Only `nim`, `nimsuggest`, `nimpretty`, `nimgrep` and `atlas`
 (plus DLLs and `cacert.pem` on Windows) are kept from `bin/`. For manylinux tags the script
 checks the binaries' glibc symbol versions against the tag.
 
@@ -59,8 +59,8 @@ cache, keyed by the zig path of the environment, and passes
 `--cc:clang --clang.exe:<shim> --clang.linkerexe:<shim>`.
 
 Flags are inserted right after the Nim command, and only for commands that run the C
-compiler (`c`, `cpp`, `r`, ...). `nim e` is left alone: nimble evaluates `.nimble` files
-with it and NimScript sees every command-line argument (injecting there broke nimble).
+compiler (`c`, `cpp`, `r`, ...). `nim e` is left alone: it evaluates NimScript (including
+`.nimble` files), which sees every command-line argument (injecting there broke nimble).
 `NIMLANG_CC=system` opts out and uses Nim's default compiler.
 
 Cross-compilation is the same mechanism plus `--os/--cpu` and `-target <zig triple>`.
@@ -110,8 +110,9 @@ build sees exactly the project's dependencies and nothing from `~/.nimble`.
 Why atlas rather than nimble: atlas keeps dependencies inside the project and has a lock file
 built for replaying, it only needs git (nimble also downloads its package list over HTTPS with
 Nim's own HTTP client, which failed behind the proxy of the sandbox this was tested in), and it
-ships with Nim. nimble is still bundled and the `nimble` command still works (for a package's
-own tasks or publishing), but nimlang no longer calls it.
+ships with Nim. nimble is no longer shipped in the wheel (decided 2026-10-06): nimlang does not
+call it, and one way to manage dependencies is simpler. Someone who needs nimble for a package's
+own tasks or publishing can install it separately.
 
 ### 4. Distributing Nim code in Python packages
 
@@ -157,7 +158,7 @@ toolchain (undecided; see the roadmap).
 2. **Versioning:** `nimlang` has its own versions and bundles one Nim per release. Per-project
    Nim versions are on the roadmap.
 3. **Nim dependencies:** `[tool.nimlang]` in pyproject.toml, resolved with atlas and pinned in
-   `nimlang.lock` (2026-10-06).
+   `nimlang.lock`; nimble is no longer bundled (2026-10-06).
 4. **Build integration:** the hatchling hook (a dedicated PEP 517 backend is more work for
    little gain right now).
 5. **PyPI:** reserve `nimlang` with an early release, published from CI through trusted

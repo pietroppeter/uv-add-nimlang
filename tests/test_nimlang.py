@@ -163,7 +163,7 @@ def test_nim_args_injection(project, monkeypatch):
     monkeypatch.setattr(cli, "cc_args", lambda: ["--cc:clang"])
     assert cli.nim_args(["c", "-r", "x.nim"]) == ["c", "--cc:clang", "-r", "x.nim"]
     assert cli.nim_args(["--hints:off", "c", "x.nim"]) == ["--hints:off", "c", "--cc:clang", "x.nim"]
-    # nimble evaluates .nimble files with `nim e`, which must see only its own arguments
+    # `nim e` (NimScript, .nimble files) must see only its own arguments
     assert cli.nim_args(["e", "script.nims", "out.json"]) == ["e", "script.nims", "out.json"]
     assert cli.nim_args(["--version"]) == ["--version"]
 

@@ -1,4 +1,4 @@
-"""Command-line entry points: ``nimlang``, plus ``nim`` and ``nimble`` shims."""
+"""Command-line entry points: ``nimlang``, plus the ``nim`` shim."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from nimlang._toolchain import (
 
 # Commands that invoke the C compiler get zig cc; commands that only resolve
 # imports get the project's dependency paths. Everything else (notably `nim e`,
-# which nimble uses to evaluate .nimble files) passes through untouched, since
+# which evaluates NimScript and .nimble files) passes through untouched, since
 # NimScript sees every command-line argument.
 _C_COMMANDS = {"c", "cc", "cpp", "objc", "compile", "compiletoc", "compiletocpp", "compiletooc", "r", "run"}
 _PATH_COMMANDS = {"js", "check", "doc", "doc2", "jsondoc", "ctags", "dump"}
@@ -51,13 +51,6 @@ def nim_args(args: list[str]) -> list[str]:
 
 def run_nim(args: list[str]) -> int:
     return _run([str(nim_exe()), *nim_args(args)])
-
-
-def run_nimble(args: list[str]) -> int:
-    try:
-        return _project.run_nimble(args)
-    except KeyboardInterrupt:
-        return 130
 
 
 def _require_root() -> Path:
@@ -157,9 +150,8 @@ def _parser() -> argparse.ArgumentParser:
     s = sub.add_parser("info", help="show where the toolchain lives")
     s.set_defaults(func=cmd_info)
 
-    # Passthroughs are handled before argparse so their flags are not parsed.
+    # The passthrough is handled before argparse so its flags are not parsed.
     sub.add_parser("nim", help="run the Nim compiler (same as the `nim` command)")
-    sub.add_parser("nimble", help="run nimble (same as the `nimble` command)")
     return p
 
 
@@ -168,8 +160,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if argv and argv[0] == "nim":
             return run_nim(argv[1:])
-        if argv and argv[0] == "nimble":
-            return run_nimble(argv[1:])
         ns = _parser().parse_args(argv)
         return ns.func(ns)
     except NimlangError as e:
@@ -179,7 +169,3 @@ def main(argv: list[str] | None = None) -> int:
 
 def nim_main() -> int:
     return main(["nim", *sys.argv[1:]])
-
-
-def nimble_main() -> int:
-    return main(["nimble", *sys.argv[1:]])

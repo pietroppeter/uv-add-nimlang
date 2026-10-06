@@ -16,7 +16,7 @@ from pathlib import Path
 
 import tomlkit
 
-from nimlang._toolchain import NimlangError, atlas_exe, nim_home, nim_shim_path, nimble_exe
+from nimlang._toolchain import NimlangError, atlas_exe, nim_home
 
 STATE_DIR = ".nimlang"
 LOCK_FILE = "nimlang.lock"
@@ -270,8 +270,3 @@ def path_args(root: Path | None) -> list[str]:
     if root is None or not (workspace(root) / "nim.cfg").is_file():
         return []
     return ["--noNimblePath"] + [f"--path:{p}" for p in installed_packages(root).values()]
-
-
-def run_nimble(args: list[str]) -> int:
-    """Run the bundled nimble, compiling through nimlang's nim (and so zig cc)."""
-    return subprocess.run([str(nimble_exe()), f"--nim:{nim_shim_path()}", *args]).returncode

@@ -20,7 +20,6 @@ Repository = "https://github.com/pietroppeter/uv-add-nimlang"
 [project.scripts]
 nimlang = "nimlang.cli:main"
 nim = "nimlang.cli:nim_main"
-nimble = "nimlang.cli:nimble_main"
 
 [project.entry-points.hatch]
 nimlang = "nimlang.hatch_hook"

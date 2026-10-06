@@ -2,8 +2,9 @@
 
 Goal: `uv add nimlang` is all a Python project needs to start using Nim.
 
-- `nim` and `nimble` work inside the project (`uv run nim c -r app.nim`), with no system C compiler.
-- Nim dependencies are declared and tracked in `pyproject.toml` (`nimlang add nimpy`).
+- `nim` works inside the project (`uv run nim c -r app.nim`), with no system C compiler.
+- Nim dependencies are declared in `pyproject.toml` (`nimlang add nimpy`) and pinned in
+  `nimlang.lock`.
 - A package can ship Nim-built extension modules and executables in ordinary wheels,
   with `nimlang` as a build dependency.
 
@@ -20,7 +21,8 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 | Same extension built against glibc 2.17 (`-target x86_64-linux-gnu.2.17`) | max symbol version GLIBC_2.14, so manylinux_2_17 compliant |
 | Nim distribution repackaged into a `nimlang` platform wheel | 9.4 MB wheel (26 MB unpacked) |
 | `uv add nimlang` (from that wheel) then `uv run nim c -r hello.nim` | works |
-| `nimlang add nimpy` → nimble installs into `.nimlang/`, then `nimlang build-ext` | works |
+| `nimlang add nimpy` → nimble installs into `.nimlang/`, then `nimlang build-ext` | works (now atlas, see below) |
+| `nimlang sync` with atlas 0.9.4: resolve, write `nimlang.lock`, replay it into an empty `.nimlang/` | works (2026-10-06) |
 | `examples/hello-nim`: `uv build` with the hatch hook | `py3-none-manylinux_2_17_x86_64` wheel with extension + CLI |
 | That one wheel on CPython 3.11 and 3.13 | works on both: nimpy has no compile-time libpython dependency |
 | `NIMLANG_TARGET=aarch64-macos uv build`, `NIMLANG_TARGET=x86_64-windows-gnu uv build` from Linux | correct Mach-O / PE files and wheel tags |
@@ -32,8 +34,9 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 Same trick as [ziglang](https://pypi.org/project/ziglang/): a Python package whose platform
 wheels contain a compiler distribution. `scripts/make_wheels.py` builds the pure-Python wheel
 and injects a Nim distribution (`bin/`, `lib/`, `config/`) under `nimlang/nim/`, retagged as
-`py3-none-<platform>`. Only `nim`, `nimble`, `nimsuggest`, `nimpretty`, `nimgrep` and `atlas`
-(plus DLLs and `cacert.pem` on Windows) are kept from `bin/`. For manylinux tags the script
+`py3-none-<platform>`. Only `nim` and `atlas` (plus DLLs and
+`cacert.pem` on Windows) are kept from `bin/`: nimble, nimsuggest, nimpretty and nimgrep were
+dropped on 2026-10-06, since nothing in nimlang used them and no editor would find them there. For manylinux tags the script
 checks the binaries' glibc symbol versions against the tag.
 
 Each nimlang release bundles one Nim version (set by `NIM_VERSION` in CI), and nimlang keeps
@@ -57,8 +60,8 @@ cache, keyed by the zig path of the environment, and passes
 `--cc:clang --clang.exe:<shim> --clang.linkerexe:<shim>`.
 
 Flags are inserted right after the Nim command, and only for commands that run the C
-compiler (`c`, `cpp`, `r`, ...). `nim e` is left alone: nimble evaluates `.nimble` files
-with it and NimScript sees every command-line argument (injecting there broke nimble).
+compiler (`c`, `cpp`, `r`, ...). `nim e` is left alone: it evaluates NimScript (including
+`.nimble` files), which sees every command-line argument (injecting there broke nimble).
 `NIMLANG_CC=system` opts out and uses Nim's default compiler.
 
 Cross-compilation is the same mechanism plus `--os/--cpu` and `-target <zig triple>`.
@@ -70,10 +73,47 @@ Cross-compilation is the same mechanism plus `--os/--cpu` and `-target <zig trip
 dependencies = ["nimpy", "cligen >= 1.7"]
 ```
 
-`nimlang add/remove` edit this table (format-preserving, via tomlkit) and `nimlang sync`
-runs the bundled nimble with `--nimbleDir:.nimlang/nimble`. Compiles through nimlang get
-`--noNimblePath` plus one `--path` per installed package, so a build sees exactly the
-project's dependencies and nothing from `~/.nimble`.
+`nimlang add/remove` edit this table (format-preserving, via tomlkit) and then sync.
+Dependencies are managed with the bundled [atlas](https://github.com/nim-lang/atlas), which
+clones packages with git into a project-local folder and has a lock file of its own:
+
+- `nimlang sync` writes `.nimlang/nimlang_deps.nimble` from `[tool.nimlang]` (atlas works on a
+  nimble file) and runs atlas there, so packages land in `.nimlang/deps/` and atlas writes
+  `.nimlang/nim.cfg` with one `--path` per package (transitive ones and `srcDir` included).
+- The resolved packages go into **`nimlang.lock`** next to pyproject.toml, to be committed:
+
+  ```toml
+  version = 1
+  requires = ["nimpy"]
+
+  [[package]]
+  name = "nimpy"
+  version = "0.2.1"
+  url = "https://github.com/yglukhov/nimpy"
+  commit = "114e1b9c4f1e73d6d3999ba4df7194e7547c1be1"
+  ```
+
+- If `requires` matches `[tool.nimlang]`, `sync` replays the lock (`atlas rep`) and checks
+  every checkout is on its commit (atlas exits 0 even when one fails). If not, or with no lock
+  yet, it resolves with `atlas install` + `atlas pin` and rewrites the lock. Nothing runs when
+  the checkouts already match.
+- `nimlang lock` resolves again, picking the newest versions the requirements allow (atlas's
+  semver resolver). Changing the requirements re-resolves everything too, so a version to
+  hold back is pinned in the requirement (`"nimpy == 0.2.0"`, `"nimpy#<commit>"`).
+- nimlang writes its own lock rather than committing `atlas.lock`, which also stores the host
+  OS/CPU, Nim and gcc versions and the generated nimble file, and so changes between machines.
+- The hatch hook runs the same `sync` before compiling, so wheel and sdist builds use the
+  locked commits (the sdist carries `nimlang.lock`).
+
+Compiles through nimlang get `--noNimblePath` plus the paths from `.nimlang/nim.cfg`, so a
+build sees exactly the project's dependencies and nothing from `~/.nimble`.
+
+Why atlas rather than nimble: atlas keeps dependencies inside the project and has a lock file
+built for replaying, it only needs git (nimble also downloads its package list over HTTPS with
+Nim's own HTTP client, which failed behind the proxy of the sandbox this was tested in), and it
+ships with Nim. nimble is no longer shipped in the wheel (decided 2026-10-06): nimlang does not
+call it, and one way to manage dependencies is simpler. Someone who needs nimble for a package's
+own tasks or publishing can install it separately.
 
 ### 4. Distributing Nim code in Python packages
 
@@ -118,8 +158,8 @@ toolchain (undecided; see the roadmap).
 1. **Nim binaries:** official release builds where they exist, source builds elsewhere.
 2. **Versioning:** `nimlang` has its own versions and bundles one Nim per release. Per-project
    Nim versions are on the roadmap.
-3. **Nim dependencies:** `[tool.nimlang]` in pyproject.toml. A lock file is not implemented
-   yet; the likely route is recording resolved versions/commits next to `uv.lock`.
+3. **Nim dependencies:** `[tool.nimlang]` in pyproject.toml, resolved with atlas and pinned in
+   `nimlang.lock`; nimble is no longer bundled (2026-10-06).
 4. **Build integration:** the hatchling hook (a dedicated PEP 517 backend is more work for
    little gain right now).
 5. **PyPI:** reserve `nimlang` with an early release, published from CI through trusted
@@ -127,5 +167,5 @@ toolchain (undecided; see the roadmap).
 
 ## Next steps
 
-See [ROADMAP.md](../ROADMAP.md). Building from an sdist needs network access for the nimble
-dependencies, as with any nimble-based build.
+See [ROADMAP.md](../ROADMAP.md). Building from an sdist needs network access (git) to check out the
+locked Nim dependencies.

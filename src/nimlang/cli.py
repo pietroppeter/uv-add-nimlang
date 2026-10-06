@@ -1,4 +1,4 @@
-"""Command-line entry points: ``nimlang``, plus ``nim`` and ``nimble`` shims."""
+"""Command-line entry points: ``nimlang``, plus the ``nim`` shim."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from nimlang._toolchain import (
 
 # Commands that invoke the C compiler get zig cc; commands that only resolve
 # imports get the project's dependency paths. Everything else (notably `nim e`,
-# which nimble uses to evaluate .nimble files) passes through untouched, since
+# which evaluates NimScript and .nimble files) passes through untouched, since
 # NimScript sees every command-line argument.
 _C_COMMANDS = {"c", "cc", "cpp", "objc", "compile", "compiletoc", "compiletocpp", "compiletooc", "r", "run"}
 _PATH_COMMANDS = {"js", "check", "doc", "doc2", "jsondoc", "ctags", "dump"}
@@ -53,13 +53,6 @@ def run_nim(args: list[str]) -> int:
     return _run([str(nim_exe()), *nim_args(args)])
 
 
-def run_nimble(args: list[str]) -> int:
-    try:
-        return _project.run_nimble(args)
-    except KeyboardInterrupt:
-        return 130
-
-
 def _require_root() -> Path:
     root = _project.find_root()
     if root is None:
@@ -78,11 +71,15 @@ def cmd_remove(ns: argparse.Namespace) -> int:
     root = _require_root()
     deps = _project.remove_deps(root, ns.packages)
     print(f"nimlang: Nim dependencies: {', '.join(deps) or '(none)'}")
-    return 0
+    return 0 if ns.no_sync else _project.sync(root)
 
 
 def cmd_sync(ns: argparse.Namespace) -> int:
     return _project.sync(_require_root())
+
+
+def cmd_lock(ns: argparse.Namespace) -> int:
+    return _project.lock(_require_root())
 
 
 def cmd_build_ext(ns: argparse.Namespace) -> int:
@@ -110,6 +107,8 @@ def cmd_info(ns: argparse.Namespace) -> int:
     if root:
         rows.append(("nim deps", ", ".join(_project.read_deps(root)) or "(none)"))
         rows.append(("installed", ", ".join(sorted(_project.installed_packages(root))) or "(none)"))
+        lock = root / _project.LOCK_FILE
+        rows.append(("lock file", lock if lock.is_file() else "(none)"))
     for key, value in rows:
         print(f"{key:>11}: {value}")
     return 0
@@ -126,10 +125,16 @@ def _parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("remove", help="remove Nim dependencies from pyproject.toml")
     s.add_argument("packages", nargs="+")
+    s.add_argument("--no-sync", action="store_true", help="only edit pyproject.toml")
     s.set_defaults(func=cmd_remove)
 
-    s = sub.add_parser("sync", help="install the Nim dependencies declared in pyproject.toml")
+    s = sub.add_parser("sync", help=f"install the Nim dependencies pinned in {_project.LOCK_FILE}")
     s.set_defaults(func=cmd_sync)
+
+    s = sub.add_parser(
+        "lock", help=f"resolve the Nim dependencies again (newest allowed versions) into {_project.LOCK_FILE}"
+    )
+    s.set_defaults(func=cmd_lock)
 
     for name, func, help_ in (
         ("build-ext", cmd_build_ext, "compile .nim files into Python extension modules (nimpy)"),
@@ -145,9 +150,8 @@ def _parser() -> argparse.ArgumentParser:
     s = sub.add_parser("info", help="show where the toolchain lives")
     s.set_defaults(func=cmd_info)
 
-    # Passthroughs are handled before argparse so their flags are not parsed.
+    # The passthrough is handled before argparse so its flags are not parsed.
     sub.add_parser("nim", help="run the Nim compiler (same as the `nim` command)")
-    sub.add_parser("nimble", help="run nimble (same as the `nimble` command)")
     return p
 
 
@@ -156,8 +160,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if argv and argv[0] == "nim":
             return run_nim(argv[1:])
-        if argv and argv[0] == "nimble":
-            return run_nimble(argv[1:])
         ns = _parser().parse_args(argv)
         return ns.func(ns)
     except NimlangError as e:
@@ -167,7 +169,3 @@ def main(argv: list[str] | None = None) -> int:
 
 def nim_main() -> int:
     return main(["nim", *sys.argv[1:]])
-
-
-def nimble_main() -> int:
-    return main(["nimble", *sys.argv[1:]])

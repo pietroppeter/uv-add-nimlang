@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import re
-import shutil
 import subprocess
 import sys
 import sysconfig
@@ -107,10 +106,10 @@ def nim_version(home: Path | None = None) -> str:
     return ".".join(parts.values())
 
 
-def nimble_exe() -> Path:
-    path = nim_home() / "bin" / f"nimble{EXE}"
+def atlas_exe() -> Path:
+    path = nim_home() / "bin" / f"atlas{EXE}"
     if not path.is_file():
-        raise NimlangError(f"nimble not found next to nim in {path.parent}")
+        raise NimlangError(f"atlas not found next to nim in {path.parent}")
     return path
 
 
@@ -194,15 +193,3 @@ def cc_args(target: str | None = None) -> list[str]:
     if target:
         args += target_args(target)
     return args
-
-
-def nim_shim_path() -> str:
-    """Path of nimlang's ``nim`` console script if installed, else the raw compiler.
-
-    Handed to nimble so that packages it builds also compile through zig cc.
-    """
-    shim = _scripts_dir() / f"nim{EXE}"
-    if shim.is_file():
-        return str(shim)
-    found = shutil.which("nim")
-    return found or str(nim_exe())

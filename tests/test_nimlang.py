@@ -1,7 +1,10 @@
+import json
 import os
+import shutil
 import subprocess
 
 import pytest
+import tomlkit
 
 from nimlang import _project, _toolchain, cli
 from nimlang._toolchain import NimlangError
@@ -37,15 +40,94 @@ def test_add_and_remove_deps(project):
     assert _project.read_deps(project) == ["cligen"]
 
 
-def test_installed_packages_picks_highest_version(project):
-    pkgs2 = _project.nimble_dir(project) / "pkgs2"
-    for name in ["nimpy-0.2.0-abc", "nimpy-0.10.1-def", "cligen-1.7.0-123"]:
-        (pkgs2 / name).mkdir(parents=True)
+@pytest.mark.parametrize(
+    "req, nimble",
+    [
+        ("nimpy", "nimpy"),
+        ("nimpy >= 0.2.0", "nimpy >= 0.2.0"),
+        ("nimpy#head", "nimpy#head"),
+        ("nimpy@#head", "nimpy#head"),
+        ("nimpy@0.2.0", "nimpy == 0.2.0"),
+        ("nimpy@>=0.2", "nimpy >=0.2"),
+        ("https://github.com/yglukhov/nimpy", "https://github.com/yglukhov/nimpy"),
+    ],
+)
+def test_nimble_requirement(req, nimble):
+    assert _project.nimble_requirement(req) == nimble
+
+
+def test_path_args_from_atlas_cfg(project):
+    ws = _project.workspace(project)
+    ws.mkdir()
+    (ws / "nim.cfg").write_text(
+        "############# begin Atlas config section ##########\n--noNimblePath\n"
+        '--path:"deps/nimpy"\n--path:"deps/jsony/src"\n'
+        "############# end Atlas config section   ##########\n"
+    )
     installed = _project.installed_packages(project)
-    assert installed["nimpy"].name == "nimpy-0.10.1-def"
-    assert set(installed) == {"nimpy", "cligen"}
+    assert installed == {"nimpy": ws / "deps" / "nimpy", "jsony": ws / "deps" / "jsony" / "src"}
     args = _project.path_args(project)
     assert args[0] == "--noNimblePath" and len(args) == 3
+
+
+def _fake_atlas(calls, commit, sep="/"):
+    """Stand-in for atlas: `install` checks out nimpy, `pin`/`rep` write their files."""
+
+    def run(root, args):
+        calls.append(args[0])
+        ws = _project.workspace(root)
+        repo = ws / "deps" / "nimpy"
+        if args[0] in ("install", "rep"):
+            repo.mkdir(parents=True, exist_ok=True)
+            (repo / "nimpy.nimble").write_text('version = "0.2.1"\n')
+            (ws / "nim.cfg").write_text('--noNimblePath\n--path:"deps/nimpy"\n')
+            heads[repo] = commit
+        if args[0] == "pin":
+            items = {
+                "nimpy": {"dir": "$deps/nimpy", "url": "https://x/nimpy", "commit": commit, "version": ""}
+            }
+            (ws / "atlas.lock").write_text(json.dumps({"items": items}))
+        return 0
+
+    heads = {}
+    return run, heads
+
+
+@pytest.mark.parametrize("sep", ["/", "\\"])
+def test_lock_and_sync(project, monkeypatch, sep):
+    calls = []
+    run, heads = _fake_atlas(calls, "abc123", sep)
+    monkeypatch.setattr(_project, "run_atlas", run)
+    monkeypatch.setattr(_project, "_git_head", lambda path: heads.get(path))
+    _project.add_deps(project, ["nimpy@#head"])
+
+    assert _project.sync(project) == 0
+    assert calls == ["install", "pin"]
+    manifest = (_project.workspace(project) / _project.MANIFEST).read_text()
+    assert manifest == 'requires "nimpy#head"\n'
+    lock = tomlkit.parse((project / _project.LOCK_FILE).read_text()).unwrap()
+    assert lock["requires"] == ["nimpy@#head"]
+    assert lock["package"] == [
+        {"name": "nimpy", "version": "0.2.1", "url": "https://x/nimpy", "commit": "abc123"}
+    ]
+
+    # Up to date: nothing runs. Fresh checkout: the lock is replayed, not resolved.
+    calls.clear()
+    assert _project.sync(project) == 0 and calls == []
+    heads.clear()
+    assert _project.sync(project) == 0 and calls == ["rep"]
+
+    # A replay that lands on another commit is an error.
+    calls.clear()
+    heads.clear()
+    monkeypatch.setattr(_project, "run_atlas", lambda root, args: 0)
+    with pytest.raises(NimlangError, match="nimpy"):
+        _project.sync(project)
+
+    # Removing every dependency removes the lock file.
+    _project.remove_deps(project, ["nimpy"])
+    assert _project.sync(project) == 0
+    assert not (project / _project.LOCK_FILE).exists()
 
 
 def test_path_args_without_state(project):
@@ -81,7 +163,7 @@ def test_nim_args_injection(project, monkeypatch):
     monkeypatch.setattr(cli, "cc_args", lambda: ["--cc:clang"])
     assert cli.nim_args(["c", "-r", "x.nim"]) == ["c", "--cc:clang", "-r", "x.nim"]
     assert cli.nim_args(["--hints:off", "c", "x.nim"]) == ["--hints:off", "c", "--cc:clang", "x.nim"]
-    # nimble evaluates .nimble files with `nim e`, which must see only its own arguments
+    # `nim e` (NimScript, .nimble files) must see only its own arguments
     assert cli.nim_args(["e", "script.nims", "out.json"]) == ["e", "script.nims", "out.json"]
     assert cli.nim_args(["--version"]) == ["--version"]
 
@@ -136,3 +218,26 @@ def test_nim_version(tmp_path):
         "  NimPatch* {.intdefine.}: int = 6\n"
     )
     assert _toolchain.nim_version(tmp_path) == "2.2.6"
+
+
+@pytest.mark.skipif(not _have_nim() or not shutil.which("git"), reason="needs Nim and git")
+def test_atlas_lock_and_replay(project):
+    """Real atlas, real network: resolve nimpy, then rebuild .nimlang from the lock alone."""
+    _project.add_deps(project, ["nimpy"])
+    assert _project.sync(project) == 0
+    lock = tomlkit.parse((project / _project.LOCK_FILE).read_text()).unwrap()
+    [nimpy] = lock["package"]
+    assert nimpy["name"] == "nimpy" and len(nimpy["commit"]) == 40
+    assert "nimpy" in _project.installed_packages(project)
+
+    before = (project / _project.LOCK_FILE).read_text()
+    shutil.rmtree(_project.workspace(project), onerror=_force_remove)
+    assert _project.sync(project) == 0
+    assert _project._git_head(_project.workspace(project) / "deps" / "nimpy") == nimpy["commit"]
+    assert (project / _project.LOCK_FILE).read_text() == before
+
+
+def _force_remove(func, path, _exc):
+    # git marks pack files read-only, which Windows refuses to delete.
+    os.chmod(path, 0o700)
+    func(path)

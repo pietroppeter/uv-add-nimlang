@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Tools worth shipping; the rest (testament, nim_dbg, nim-gdb, ...) stays out to keep wheels small.
-KEEP_BIN = {"nim", "nimble", "nimsuggest", "nimpretty", "nimgrep", "atlas"}
+KEEP_BIN = {"nim", "atlas"}
 KEEP_BIN_SUFFIXES = {".dll", ".pem"}
 KEEP_TOP = {"bin", "lib", "config", "copying.txt", "LICENSE", "license.txt"}
 
@@ -74,7 +74,7 @@ def nim_files(home: Path):
         rel = path.relative_to(home)
         if rel.parts[0] not in KEEP_TOP or not path.is_file():
             continue
-        # Windows builds need their DLLs and cacert.pem (used for HTTPS by nimble) next to the executables.
+        # Windows builds need their DLLs and cacert.pem (for HTTPS from Nim programs) next to the executables.
         if rel.parts[0] == "bin" and path.suffix not in KEEP_BIN_SUFFIXES and path.stem not in KEEP_BIN:
             continue
         yield f"nimlang/nim/{rel.as_posix()}", path

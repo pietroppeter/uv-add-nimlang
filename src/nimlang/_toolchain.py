@@ -6,7 +6,6 @@ import hashlib
 import json
 import os
 import re
-import shlex
 import subprocess
 import sys
 import sysconfig
@@ -198,7 +197,9 @@ def target_args(target: str) -> list[str]:
     # not look in the SDK, so code using system frameworks (std/sysrand, imported
     # by std/random, needs Security) fails to compile and link. Point it there.
     if os_name == "macos" and (sdk := macos_sdk()):
-        frameworks = shlex.quote(str(sdk / "System" / "Library" / "Frameworks"))
+        frameworks = str(sdk / "System" / "Library" / "Frameworks")
+        if " " in frameworks:
+            frameworks = f'"{frameworks}"'
         args += [f"--passC:-F{frameworks}", f"--passL:-F{frameworks}"]
     return args
 

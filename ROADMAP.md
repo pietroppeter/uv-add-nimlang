@@ -72,6 +72,9 @@ nimporter, with fixes also sent upstream. Problems with upstream today:
 - **Keep locked versions when requirements change:** today adding a Nim dependency
   re-resolves all of them to the newest allowed versions (atlas has no "keep what's locked").
 - **Native `zigcc` shim on Windows:** a tiny executable instead of the `.cmd` file.
+- **Nim flags for the hatch hook:** a `nim-args = [...]` key in
+  `[tool.hatch.build.hooks.nimlang]` (for example `["-d:danger"]`), so wheel builds can change
+  the default `-d:release` without a `config.nims`. `nimlang build-ext` already takes `--nim-arg`.
 - **`nimlang init`:** scaffold a mixed Python/Nim project (nimpy module, build hook, tests).
 - **Editor support:** ship nimsuggest again (dropped from the wheel for now) and point
   nimlangserver / the VS Code Nim extension at it, the venv's Nim and the project's dependency paths.

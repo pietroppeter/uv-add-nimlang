@@ -83,9 +83,9 @@ uv run nimlang sync          # installs exactly what nimlang.lock pins
 uv run nimlang lock          # resolves again to the newest allowed versions
 ```
 
-- Version constraints use the same syntax as atlas (and nimble's `requires`), not Python's:
-  `"nimpy == 0.2.1"`, `"cligen >= 1.7"`, `"nimib >= 0.3 & < 0.4"`, `"nimpy#head"` or
-  `"nimpy#<commit>"`. A package name alone takes the newest release, which the lock then pins.
+- Version constraints use atlas (nimble) syntax: the usual `==`, `>=`, `<` operators, `&` to
+  combine them (`"nimib >= 0.3 & < 0.4"`), and `#head` or `#<commit>` for git refs
+  (`"nimpy#head"`). A package name alone takes the newest release, which the lock then pins.
 - `nimlang.lock` records the git URL and commit of every package, including transitive ones.
   Commit it, so every checkout and every wheel build uses the same code.
 - Packages are cloned with the bundled [atlas](https://github.com/nim-lang/atlas) into

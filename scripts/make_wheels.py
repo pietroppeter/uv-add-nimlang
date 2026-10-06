@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Tools worth shipping; the rest (testament, nim_dbg, nim-gdb, ...) stays out to keep wheels small.
-KEEP_BIN = {"nim", "nimsuggest", "nimpretty", "nimgrep", "atlas"}
+KEEP_BIN = {"nim", "atlas"}
 KEEP_BIN_SUFFIXES = {".dll", ".pem"}
 KEEP_TOP = {"bin", "lib", "config", "copying.txt", "LICENSE", "license.txt"}
 

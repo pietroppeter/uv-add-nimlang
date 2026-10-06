@@ -53,7 +53,7 @@ uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best o
 
 **The Nim compiler** comes inside the nimlang wheel for your platform (Linux x86_64/aarch64,
 macOS arm64/x86_64, Windows x86_64). Each nimlang release bundles one Nim version, currently
-2.2.6, along with `nimsuggest`, `nimpretty`, `nimgrep` and atlas. `uv run nim` runs it with
+2.2.6, along with atlas. `uv run nim` runs it with
 zig cc as the C compiler and with the project's Nim dependencies on the path:
 
 ```sh

@@ -38,6 +38,6 @@ nimporter, with fixes also sent upstream. Problems with upstream today:
   re-resolves all of them to the newest allowed versions (atlas has no "keep what's locked").
 - **Native `zigcc` shim on Windows:** a tiny executable instead of the `.cmd` file.
 - **`nimlang init`:** scaffold a mixed Python/Nim project (nimpy module, build hook, tests).
-- **Editor support:** point nimsuggest/nimlangserver at the venv's Nim and the project's
-  dependency paths.
+- **Editor support:** ship nimsuggest again (dropped from the wheel for now) and point
+  nimlangserver / the VS Code Nim extension at it, the venv's Nim and the project's dependency paths.
 - **More platforms:** musllinux, Windows arm64, Linux armv7.

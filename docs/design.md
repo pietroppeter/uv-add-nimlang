@@ -34,8 +34,9 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 Same trick as [ziglang](https://pypi.org/project/ziglang/): a Python package whose platform
 wheels contain a compiler distribution. `scripts/make_wheels.py` builds the pure-Python wheel
 and injects a Nim distribution (`bin/`, `lib/`, `config/`) under `nimlang/nim/`, retagged as
-`py3-none-<platform>`. Only `nim`, `nimsuggest`, `nimpretty`, `nimgrep` and `atlas`
-(plus DLLs and `cacert.pem` on Windows) are kept from `bin/`. For manylinux tags the script
+`py3-none-<platform>`. Only `nim` and `atlas` (plus DLLs and
+`cacert.pem` on Windows) are kept from `bin/`: nimble, nimsuggest, nimpretty and nimgrep were
+dropped on 2026-10-06, since nothing in nimlang used them and no editor would find them there. For manylinux tags the script
 checks the binaries' glibc symbol versions against the tag.
 
 Each nimlang release bundles one Nim version (set by `NIM_VERSION` in CI), and nimlang keeps

@@ -6,14 +6,14 @@ Use [Nim](https://nim-lang.org) in a Python project with nothing but uv.
 `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no system
 Nim and no C compiler.
 
-> Status: early scaffold, not on PyPI yet. See [docs/design.md](docs/design.md) for what works
+> Status: early, first release on [PyPI](https://pypi.org/project/nimlang/). See [docs/design.md](docs/design.md) for what works
 > and what is planned.
 
 ## Try it: a Python project with a Nim function
 
 ```sh
 uv init nim-demo && cd nim-demo
-uv add "nimlang @ git+https://github.com/pietroppeter/uv-add-nimlang"
+uv add nimlang
 uv run nimlang add nimpy            # Nim deps go in [tool.nimlang] in pyproject.toml
 ```
 
@@ -33,9 +33,9 @@ uv run nimlang build-ext fast.nim   # writes fast.<python-tag>.so (.pyd on Windo
 uv run python -c "import fast; print(fast.fib(30))"   # 832040
 ```
 
-Until nimlang is on PyPI, the git install has no bundled Nim: put Nim 2.x on `PATH` (for example with
-[choosenim](https://github.com/nim-lang/choosenim)) or point `NIMLANG_NIM_HOME` at an unpacked Nim
-release. Once it is published, `uv add nimlang` brings Nim along and nothing else is needed.
+To try the latest code instead, `uv add "nimlang @ git+https://github.com/pietroppeter/uv-add-nimlang"`.
+That install has no bundled Nim, so it also needs Nim 2.x on `PATH` (for example with
+[choosenim](https://github.com/nim-lang/choosenim)) or `NIMLANG_NIM_HOME` pointing at an unpacked Nim release.
 
 ## Use Nim in your project
 

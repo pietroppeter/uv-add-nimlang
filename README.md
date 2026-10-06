@@ -70,6 +70,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.hooks.nimlang]
 extensions = ["src/mypkg/nimcore.nim"]  # importable as mypkg.nimcore
 binaries = ["src/mypkg/mytool.nim"]     # installed as the `mytool` command
+# strip = false                         # keep debug symbols (stripped by default)
 
 [tool.nimlang]
 dependencies = ["nimpy"]

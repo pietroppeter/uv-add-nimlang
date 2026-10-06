@@ -163,11 +163,13 @@ def zigcc_shim() -> Path:
 
 def target_args(target: str) -> list[str]:
     """Nim flags to cross-compile for a zig target triple such as ``aarch64-macos``
-    or ``x86_64-linux-gnu.2.17`` (the glibc suffix gives manylinux-compatible output)."""
+    or ``x86_64-linux-gnu.2.17`` (the glibc suffix gives manylinux-compatible output,
+    and ``aarch64-macos.11.0`` sets the minimum macOS version)."""
     parts = target.split("-")
     if len(parts) < 2:
         raise NimlangError(f"invalid zig target {target!r}, expected <arch>-<os>[-<abi>]")
-    arch, os_name = parts[0], parts[1]
+    # The OS may carry a minimum version, as in ``aarch64-macos.11.0``.
+    arch, os_name = parts[0], parts[1].partition(".")[0]
     if arch not in ZIG_TO_NIM_CPU or os_name not in ZIG_TO_NIM_OS:
         raise NimlangError(f"unsupported zig target {target!r}")
     return [

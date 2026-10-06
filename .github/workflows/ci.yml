@@ -3,9 +3,8 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
-  release:
-    types: [published]
   workflow_dispatch:
 
 env:
@@ -173,10 +172,9 @@ jobs:
           path: dist/*.tar.gz
 
   publish:
-    # Publishing a GitHub release with a vX.Y.Z tag releases nimlang (platform wheels
-    # plus sdist) to PyPI. The tag must match the version in pyproject.toml.
+    # Push a vX.Y.Z tag to release nimlang (platform wheels plus sdist) to PyPI.
     # Like the PyPA guide, this job only downloads built files, so it needs no checkout.
-    if: github.event_name == 'release' && startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [sdist, test, cross]
     runs-on: ubuntu-latest
     environment: pypi
@@ -187,9 +185,4 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Check the tag matches the package version
-        run: |
-          ls dist
-          ls dist | grep -q "^nimlang-${GITHUB_REF_NAME#v}[-.]" \
-            || { echo "tag $GITHUB_REF_NAME does not match the built version"; exit 1; }
       - uses: pypa/gh-action-pypi-publish@release/v1

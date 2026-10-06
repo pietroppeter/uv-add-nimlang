@@ -186,7 +186,8 @@ def lock(root: Path) -> int:
     packages = []
     for name, item in items.items():
         pkg = {"name": name}
-        rel = item["dir"].removeprefix("$deps/")
+        # atlas writes "$deps\\nimpy" on Windows; the lock always uses "/".
+        rel = item["dir"].replace("\\", "/").removeprefix("$deps/")
         if rel != name:
             pkg["dir"] = rel
         pkg["version"] = item.get("version") or _nimble_version(_package_dir(root, pkg))

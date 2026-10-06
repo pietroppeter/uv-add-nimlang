@@ -70,7 +70,7 @@ def test_path_args_from_atlas_cfg(project):
     assert args[0] == "--noNimblePath" and len(args) == 3
 
 
-def _fake_atlas(calls, commit):
+def _fake_atlas(calls, commit, sep="/"):
     """Stand-in for atlas: `install` checks out nimpy, `pin`/`rep` write their files."""
 
     def run(root, args):
@@ -93,9 +93,10 @@ def _fake_atlas(calls, commit):
     return run, heads
 
 
-def test_lock_and_sync(project, monkeypatch):
+@pytest.mark.parametrize("sep", ["/", "\\"])
+def test_lock_and_sync(project, monkeypatch, sep):
     calls = []
-    run, heads = _fake_atlas(calls, "abc123")
+    run, heads = _fake_atlas(calls, "abc123", sep)
     monkeypatch.setattr(_project, "run_atlas", run)
     monkeypatch.setattr(_project, "_git_head", lambda path: heads.get(path))
     _project.add_deps(project, ["nimpy@#head"])

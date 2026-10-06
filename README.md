@@ -9,10 +9,12 @@ Nim and no C compiler.
 > Status: early, first release on [PyPI](https://pypi.org/project/nimlang/). See [docs/design.md](docs/design.md) for what works
 > and what is planned.
 
+AI disclosure: this project is mostly vibed. Currently [level 7](https://www.visidata.org/blog/2026/ai/#level-6%3A-bots-coded%2C-human-understands-mostly) on visidata AI scale: Human specced, bots coded.
+
 ## Try it: a Python project with a Nim function
 
 ```sh
-uv init nim-demo && cd nim-demo
+uv init uv-add-nimlang-demo && cd uv-add-nimlang-demo
 uv add nimlang
 uv run nimlang add nimpy            # Nim deps go in [tool.nimlang] in pyproject.toml
 uv run nimlang info                 # bundled Nim and zig, and the project's Nim deps
@@ -48,10 +50,6 @@ uv run python -m timeit -s "from slow import fib" "fib(30)"   # 2 loops, best of
 uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best of 5: 10.6 msec per loop
 ```
 
-To try the latest code instead, `uv add "nimlang @ git+https://github.com/pietroppeter/uv-add-nimlang"`.
-That install has no bundled Nim, so it also needs Nim 2.x on `PATH` (for example with
-[choosenim](https://github.com/nim-lang/choosenim)) or `NIMLANG_NIM_HOME` pointing at an unpacked Nim release.
-
 ## Use Nim in your project
 
 ```sh
@@ -80,6 +78,8 @@ dependencies = ["nimpy"]
 `uv build` produces a `py3-none-<platform>` wheel that works on every CPython 3 version.
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
 cross-builds for other platforms. See [examples/hello-nim](examples/hello-nim).
+
+> disclsoure: have not tested this yet
 
 ## Building nimlang wheels
 

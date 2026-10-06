@@ -66,7 +66,7 @@ On other platforms nimlang uses `$NIMLANG_NIM_HOME` or a `nim` on `PATH`. Choosi
 version per project is on the [roadmap](ROADMAP.md).
 
 **The C compiler** is `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package,
-installed as a regular dependency. Set `NIMLANG_CC=system` to use your own C compiler instead.
+installed as a regular dependency.
 
 **Nim dependencies** are declared in `pyproject.toml`, next to the Python ones, and pinned in a
 lock file, like uv does for Python packages:
@@ -122,4 +122,8 @@ python scripts/make_wheels.py --nim-dist nim-2.2.6-linux_x64.tar.xz --platform-t
 CI builds them for Linux (x86_64, aarch64), macOS (arm64, x86_64) and Windows x86_64, and
 publishes to PyPI when a `v*` tag is pushed.
 
+## Escape hatch: your own C compiler
 
+If zig cc can't build something, `NIMLANG_CC=system` makes Nim use its default C compiler
+(gcc, clang or MSVC) instead. It is not tested in CI and cannot cross-compile, so it can't
+build wheels on Linux, where they always target glibc 2.17.

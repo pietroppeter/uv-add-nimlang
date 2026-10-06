@@ -1,5 +1,6 @@
 import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -136,3 +137,16 @@ def test_nim_version(tmp_path):
         "  NimPatch* {.intdefine.}: int = 6\n"
     )
     assert _toolchain.nim_version(tmp_path) == "2.2.6"
+
+
+def test_sync_runs_nimble_outside_the_project(project, monkeypatch):
+    # uv unpacks sdists under a cache dir holding a non-repository .git file, which makes
+    # git (called by nimble) fail anywhere below it.
+    (project / ".git").write_text("not a gitdir\n")
+    _project.write_deps(project, ["nimpy"])
+    calls = []
+    monkeypatch.setattr(_project, "run_nimble", lambda args, cwd=None: calls.append((args, cwd)) or 0)
+    assert _project.sync(project) == 0
+    ((args, cwd),) = calls
+    assert project.resolve() not in Path(cwd).resolve().parents
+    assert args[0] == f"--nimbleDir:{(project / '.nimlang' / 'nimble').resolve()}"

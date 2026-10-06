@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 import tomlkit
@@ -119,9 +120,9 @@ def path_args(root: Path | None) -> list[str]:
     return ["--noNimblePath"] + [f"--path:{p}" for p in installed_packages(root).values()]
 
 
-def run_nimble(args: list[str]) -> int:
+def run_nimble(args: list[str], cwd: Path | str | None = None) -> int:
     """Run the bundled nimble, compiling through nimlang's nim (and so zig cc)."""
-    return subprocess.run([str(nimble_exe()), f"--nim:{nim_shim_path()}", *args]).returncode
+    return subprocess.run([str(nimble_exe()), f"--nim:{nim_shim_path()}", *args], cwd=cwd).returncode
 
 
 def sync(root: Path) -> int:
@@ -130,12 +131,16 @@ def sync(root: Path) -> int:
     if not deps:
         print("nimlang: no Nim dependencies declared in [tool.nimlang]")
         return 0
-    folder = nimble_dir(root)
+    folder = nimble_dir(root).resolve()
     folder.mkdir(parents=True, exist_ok=True)
     gitignore = folder.parent / ".gitignore"
     if not gitignore.exists():
         gitignore.write_text("*\n")
-    return run_nimble([f"--nimbleDir:{folder}", "install", "-y", *deps])
+    # Run outside the project: nimble calls git from its working directory, and git fails
+    # there if a parent holds a .git file that is not a repository. uv's cache has one, so
+    # building a wheel from an sdist (unpacked inside that cache) broke.
+    with tempfile.TemporaryDirectory(prefix="nimlang-sync-") as cwd:
+        return run_nimble([f"--nimbleDir:{folder}", "install", "-y", *deps], cwd=cwd)
 
 
 def missing_deps(root: Path) -> list[str]:

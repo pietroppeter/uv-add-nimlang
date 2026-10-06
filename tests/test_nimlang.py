@@ -2,6 +2,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 import pytest
 import tomlkit
@@ -135,7 +136,8 @@ def test_path_args_without_state(project):
     assert _project.path_args(None) == []
 
 
-def test_target_args():
+def test_target_args(monkeypatch):
+    monkeypatch.setattr(_toolchain, "macos_sdk", lambda: None)
     assert _toolchain.target_args("aarch64-macos") == [
         "--cpu:arm64",
         "--os:macosx",
@@ -187,6 +189,14 @@ def test_pin_target():
     assert hatch_hook.pin_target(None) is None
 
 
+def test_target_args_macos_sdk(monkeypatch, tmp_path):
+    monkeypatch.setenv("SDKROOT", str(tmp_path))
+    frameworks = tmp_path / "System" / "Library" / "Frameworks"
+    assert f"--passL:-F{frameworks}" in _toolchain.target_args("aarch64-macos.11.0")
+    assert f"--passC:-F{frameworks}" in _toolchain.target_args("x86_64-macos")
+    assert not any("-F" in a for a in _toolchain.target_args("x86_64-linux-gnu.2.17"))
+
+
 def test_target_args_os_version():
     args = _toolchain.target_args("aarch64-macos.11.0")
     assert args[:2] == ["--cpu:arm64", "--os:macosx"]
@@ -208,6 +218,18 @@ def test_compile_and_run(project):
     (project / "hello.nim").write_text('echo "hello from nim"\n')
     exe = build_binary(project / "hello.nim")
     assert subprocess.run([str(exe)], capture_output=True, text=True).stdout == "hello from nim\n"
+
+
+@pytest.mark.skipif(sys.platform != "darwin" or not _have_nim(), reason="needs macOS and Nim")
+def test_compile_with_macos_framework(project):
+    # The hatch hook pins macOS builds to an explicit target; std/random still has
+    # to find the Security framework (via std/sysrand) in the SDK.
+    hatch_hook = pytest.importorskip("nimlang.hatch_hook")
+    from nimlang._build import build_binary
+
+    (project / "rnd.nim").write_text("import std/random\nrandomize()\necho rand(9) < 10\n")
+    exe = build_binary(project / "rnd.nim", target=hatch_hook.pin_target(hatch_hook.default_target()))
+    assert subprocess.run([str(exe)], capture_output=True, text=True).stdout == "true\n"
 
 
 def test_nim_version(tmp_path):

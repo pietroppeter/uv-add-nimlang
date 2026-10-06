@@ -39,6 +39,8 @@ dev = ["pytest>=8", "hatchling"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# A package built by CI through the hatch hook, not part of the unit tests.
+addopts = "--ignore=tests/hello-nim"
 
 [tool.ruff]
 line-length = 110

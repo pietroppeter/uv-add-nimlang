@@ -23,7 +23,7 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 | `uv add nimlang` (from that wheel) then `uv run nim c -r hello.nim` | works |
 | `nimlang add nimpy` → nimble installs into `.nimlang/`, then `nimlang build-ext` | works (now atlas, see below) |
 | `nimlang sync` with atlas 0.9.4: resolve, write `nimlang.lock`, replay it into an empty `.nimlang/` | works (2026-10-06) |
-| `examples/hello-nim`: `uv build` with the hatch hook | `py3-none-manylinux_2_17_x86_64` wheel with extension + CLI |
+| `tests/hello-nim`: `uv build` with the hatch hook | `py3-none-manylinux_2_17_x86_64` wheel with extension + CLI |
 | That one wheel on CPython 3.11 and 3.13 | works on both: nimpy has no compile-time libpython dependency |
 | `NIMLANG_TARGET=aarch64-macos uv build`, `NIMLANG_TARGET=x86_64-windows-gnu uv build` from Linux | correct Mach-O / PE files and wheel tags |
 

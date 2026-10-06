@@ -173,7 +173,24 @@ def test_platform_tag():
     assert hatch_hook.platform_tag("x86_64-linux-gnu.2.17") == "manylinux_2_17_x86_64"
     assert hatch_hook.platform_tag("aarch64-linux-musl") == "musllinux_1_2_aarch64"
     assert hatch_hook.platform_tag("aarch64-macos") == "macosx_11_0_arm64"
+    assert hatch_hook.platform_tag("x86_64-macos") == "macosx_10_13_x86_64"
+    assert hatch_hook.platform_tag("x86_64-macos.12.3") == "macosx_12_3_x86_64"
     assert hatch_hook.platform_tag("x86_64-windows-gnu") == "win_amd64"
+
+
+def test_pin_target():
+    hatch_hook = pytest.importorskip("nimlang.hatch_hook")
+    assert hatch_hook.pin_target("aarch64-macos") == "aarch64-macos.11.0"
+    assert hatch_hook.pin_target("x86_64-macos") == "x86_64-macos.10.13"
+    assert hatch_hook.pin_target("aarch64-macos.14.0") == "aarch64-macos.14.0"
+    assert hatch_hook.pin_target("x86_64-linux-gnu.2.17") == "x86_64-linux-gnu.2.17"
+    assert hatch_hook.pin_target(None) is None
+
+
+def test_target_args_os_version():
+    args = _toolchain.target_args("aarch64-macos.11.0")
+    assert args[:2] == ["--cpu:arm64", "--os:macosx"]
+    assert "--passC:-target aarch64-macos.11.0" in args
 
 
 def _have_nim():

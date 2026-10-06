@@ -132,6 +132,11 @@ binaries = ["src/mypkg/mytool.nim"]     # -> `mytool` on PATH
   one wheel per platform covers every CPython 3.
 - On Linux the default target pins glibc 2.17, so native wheels are manylinux-compliant
   without a manylinux container.
+- macOS targets get a minimum version (11.0 on arm64, 10.13 on x86_64, as in nimlang's own
+  wheels) unless one is given (`aarch64-macos.12.0`); zig alone would target macOS 13 while
+  the wheel tag claimed an older one.
+- Extensions and binaries are stripped of symbols (`strip = false` in the hook config keeps
+  them); this shrinks a small nimpy module from 500 KB to 70 KB on Linux.
 - `NIMLANG_TARGET` (or `target =` in the hook config) cross-builds: a single Linux CI job can
   produce wheels for every platform. No cibuildwheel needed.
 - Editable installs (`uv sync`) build extensions in place next to the sources; add

@@ -1,6 +1,6 @@
 [project]
 name = "nimlang"
-version = "0.0.2"
+version = "0.0.3"
 description = "Use Nim in your Python project: `uv add nimlang` gives you a Nim toolchain that compiles with zig cc."
 readme = "README.md"
 license = "MIT"

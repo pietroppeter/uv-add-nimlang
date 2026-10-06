@@ -15,7 +15,7 @@ from nimlang._toolchain import (
     zigcc_shim,
 )
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 __all__ = [
     "NimlangError",

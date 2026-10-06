@@ -156,7 +156,8 @@ python scripts/make_wheels.py --nim-dist nim-2.2.6-linux_x64.tar.xz --platform-t
 ```
 
 CI builds them for Linux (x86_64, aarch64), macOS (arm64, x86_64) and Windows x86_64, and
-publishes to PyPI when a `v*` tag is pushed.
+publishes to PyPI when a GitHub release is published with a `vX.Y.Z` tag matching the version
+in `pyproject.toml`.
 
 ## Escape hatch: your own C compiler
 

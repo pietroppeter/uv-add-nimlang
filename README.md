@@ -6,8 +6,51 @@ Use [Nim](https://nim-lang.org) in a Python project with nothing but uv.
 `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no system
 Nim and no C compiler.
 
-> Status: early scaffold, not on PyPI yet. See [docs/design.md](docs/design.md) for what works
+> Status: early, first release on [PyPI](https://pypi.org/project/nimlang/). See [docs/design.md](docs/design.md) for what works
 > and what is planned.
+
+## Try it: a Python project with a Nim function
+
+```sh
+uv init nim-demo && cd nim-demo
+uv add nimlang
+uv run nimlang add nimpy            # Nim deps go in [tool.nimlang] in pyproject.toml
+uv run nimlang info                 # bundled Nim and zig, and the project's Nim deps
+```
+
+Write `nimfib.nim`:
+
+```nim
+import nimpy
+
+proc fib(n: int): int {.exportpy.} =
+  if n < 2: n else: fib(n - 1) + fib(n - 2)
+```
+
+`slow.py`, the same function in Python:
+
+```python
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+```
+
+`fast.py`, the Nim version:
+
+```python
+from nimfib import fib  # the extension module built from nimfib.nim
+```
+
+Build the extension and compare them with `timeit`:
+
+```sh
+uv run nimlang build-ext nimfib.nim   # writes nimfib.<python-tag>.so (.pyd on Windows) next to it
+uv run python -m timeit -s "from slow import fib" "fib(30)"   # 2 loops, best of 5: 135 msec per loop
+uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best of 5: 10.6 msec per loop
+```
+
+To try the latest code instead, `uv add "nimlang @ git+https://github.com/pietroppeter/uv-add-nimlang"`.
+That install has no bundled Nim, so it also needs Nim 2.x on `PATH` (for example with
+[choosenim](https://github.com/nim-lang/choosenim)) or `NIMLANG_NIM_HOME` pointing at an unpacked Nim release.
 
 ## Use Nim in your project
 

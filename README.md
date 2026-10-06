@@ -93,7 +93,16 @@ uv run nimlang lock          # resolves again to the newest allowed versions
 
 ## Ship Nim code in a Python package
 
-> disclosure: have not tested this yet
+[uv-add-nimlang-lib-demo](https://github.com/pietroppeter/uv-add-nimlang-lib-demo) is a
+minimal package built this way and published on PyPI as `nimlang-lib-demo`. Its users get
+prebuilt wheels and need neither nimlang nor a compiler:
+
+```sh
+uv run --with nimlang-lib-demo python -m timeit -s "from nimlang_lib_demo.slow import fib" "fib(30)"
+uv run --with nimlang-lib-demo python -m timeit -s "from nimlang_lib_demo.fast import fib" "fib(30)"
+```
+
+The setup is nimlang as a build requirement, plus its hatch hook pointing at the Nim files:
 
 ```toml
 [build-system]
@@ -101,9 +110,8 @@ requires = ["hatchling", "nimlang"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.hooks.nimlang]
-extensions = ["src/mypkg/nimcore.nim"]  # importable as mypkg.nimcore
-binaries = ["src/mypkg/mytool.nim"]     # installed as the `mytool` command
-# strip = false                         # keep debug symbols (stripped by default)
+extensions = ["src/mypkg/fast.nim"]  # importable as mypkg.fast
+# binaries = ["src/mypkg/mytool.nim"]  # installed as the `mytool` command
 
 [tool.nimlang]
 dependencies = ["nimpy"]
@@ -111,7 +119,9 @@ dependencies = ["nimpy"]
 
 `uv build` produces a `py3-none-<platform>` wheel that works on every CPython 3 version.
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
-cross-builds for other platforms. See [examples/hello-nim](examples/hello-nim).
+cross-builds for other platforms. The demo's CI builds all five platform wheels on one Linux
+machine and tests each on its own OS. [examples/hello-nim](examples/hello-nim) also shows a
+Nim executable shipped in the wheel.
 
 ## Building nimlang wheels
 

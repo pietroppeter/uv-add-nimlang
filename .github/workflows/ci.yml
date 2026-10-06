@@ -160,22 +160,29 @@ jobs:
           uv build --wheel --out-dir dist-example examples/hello-nim
           ls dist-example
 
-  publish:
-    # Push a vX.Y.Z tag to release nimlang (platform wheels plus sdist) to PyPI.
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [test, cross]
+  sdist:
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      contents: read  # setting any permission drops the rest, and checkout needs this
-      id-token: write  # PyPI trusted publishing
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - run: uv build --sdist --out-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz
+
+  publish:
+    # Push a vX.Y.Z tag to release nimlang (platform wheels plus sdist) to PyPI.
+    # Like the PyPA guide, this job only downloads built files, so it needs no checkout.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [sdist, test, cross]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # PyPI trusted publishing
+    steps:
       - uses: actions/download-artifact@v4
         with:
-          pattern: wheel-*
           path: dist
           merge-multiple: true
-      - run: uv build --sdist --out-dir dist
       - uses: pypa/gh-action-pypi-publish@release/v1

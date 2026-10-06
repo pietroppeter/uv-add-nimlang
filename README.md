@@ -49,24 +49,47 @@ uv run python -m timeit -s "from slow import fib" "fib(30)"   # 2 loops, best of
 uv run python -m timeit -s "from fast import fib" "fib(30)"   # 20 loops, best of 5: 10.6 msec per loop
 ```
 
-## nim available
+## How Nim and Nim dependencies are provided
 
-Currently ships a fixed nim version
-
-```sh
-uv run nim --version # 2.2.6
-```
-
-## Nim dependencies
+**The Nim compiler** comes inside the nimlang wheel for your platform (Linux x86_64/aarch64,
+macOS arm64/x86_64, Windows x86_64). Each nimlang release bundles one Nim version, currently
+2.2.6, along with `nimsuggest`, `nimpretty`, `nimgrep` and atlas. `uv run nim` runs it with
+zig cc as the C compiler and with the project's Nim dependencies on the path:
 
 ```sh
-uv run nimlang add nimpy   # adds it to [tool.nimlang] in pyproject.toml and installs it
-uv run nimlang sync        # installs exactly what nimlang.lock pins (commit it)
-uv run nimlang lock        # resolves again to the newest allowed versions
+uv run nim --version         # 2.2.6
+uv run nim c -r hello.nim
+uv run nimlang info          # which Nim and zig are used, and the project's Nim deps
 ```
 
-Packages are fetched with [atlas](https://github.com/nim-lang/atlas) (bundled with Nim) into
-`.nimlang/`, and builds through nimlang see only those, never `~/.nimble`.
+On other platforms nimlang uses `$NIMLANG_NIM_HOME` or a `nim` on `PATH`. Choosing the Nim
+version per project is on the [roadmap](ROADMAP.md).
+
+**The C compiler** is `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package,
+installed as a regular dependency. Set `NIMLANG_CC=system` to use your own C compiler instead.
+
+**Nim dependencies** are declared in `pyproject.toml`, next to the Python ones, and pinned in a
+lock file, like uv does for Python packages:
+
+```toml
+[tool.nimlang]
+dependencies = ["nimpy", "cligen >= 1.7"]
+```
+
+```sh
+uv run nimlang add nimpy     # adds it to [tool.nimlang] and syncs
+uv run nimlang remove nimpy  # removes it and syncs
+uv run nimlang sync          # installs exactly what nimlang.lock pins
+uv run nimlang lock          # resolves again to the newest allowed versions
+```
+
+- `nimlang.lock` records the git URL and commit of every package, including transitive ones.
+  Commit it, so every checkout and every wheel build uses the same code.
+- Packages are cloned with the bundled [atlas](https://github.com/nim-lang/atlas) into
+  `.nimlang/` (git-ignored), so git is needed. Builds through nimlang see only those packages,
+  never `~/.nimble`.
+- nimlang drives atlas for you: there is no `atlas` command, and nimble is not shipped.
+  `[tool.nimlang]` and `nimlang.lock` are the only places dependencies are managed.
 
 ## Ship Nim code in a Python package
 

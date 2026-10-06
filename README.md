@@ -15,9 +15,10 @@ Nim and no C compiler.
 uv init nim-demo && cd nim-demo
 uv add nimlang
 uv run nimlang add nimpy            # Nim deps go in [tool.nimlang] in pyproject.toml
+uv run nimlang info                 # bundled Nim and zig, and the project's Nim deps
 ```
 
-Write `fast.nim`:
+Write `nimfib.nim`:
 
 ```nim
 import nimpy
@@ -26,11 +27,37 @@ proc fib(n: int): int {.exportpy.} =
   if n < 2: n else: fib(n - 1) + fib(n - 2)
 ```
 
-Build it as an extension module and call it from Python:
+`slow.py`, the same function in Python:
+
+```python
+import time
+
+
+def fib(n):
+    return n if n < 2 else fib(n - 1) + fib(n - 2)
+
+
+start = time.perf_counter()
+print(f"Python: fib(35) = {fib(35)} in {time.perf_counter() - start:.3f}s")
+```
+
+`fast.py`, calling the Nim version:
+
+```python
+import time
+
+from nimfib import fib  # the extension module built from nimfib.nim
+
+start = time.perf_counter()
+print(f"Nim:    fib(35) = {fib(35)} in {time.perf_counter() - start:.3f}s")
+```
+
+Build the extension and compare:
 
 ```sh
-uv run nimlang build-ext fast.nim   # writes fast.<python-tag>.so (.pyd on Windows) next to it
-uv run python -c "import fast; print(fast.fib(30))"   # 832040
+uv run nimlang build-ext nimfib.nim   # writes nimfib.<python-tag>.so (.pyd on Windows) next to it
+uv run slow.py
+uv run fast.py
 ```
 
 To try the latest code instead, `uv add "nimlang @ git+https://github.com/pietroppeter/uv-add-nimlang"`.

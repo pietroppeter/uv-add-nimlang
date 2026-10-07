@@ -9,7 +9,7 @@ Today each nimlang release bundles one Nim version. The goal is for a project to
 
 ### Proposed: a `nimlang-nim` compiler package
 
-Split the toolchain the way [ziglang](https://pypi.org/project/ziglang/) ships Zig:
+Split the toolchain the way [zig-pypi](https://codeberg.org/ziglang/zig-pypi) ships Zig:
 
 | Package | Contents | Version |
 |---|---|---|

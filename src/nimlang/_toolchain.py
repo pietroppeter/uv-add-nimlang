@@ -160,6 +160,22 @@ def zigcc_shim() -> Path:
     return shim
 
 
+def macos_sdk() -> Path | None:
+    """The macOS SDK to find system frameworks in: ``$SDKROOT``, else on a Mac
+    the one ``xcrun`` reports. None when neither is available."""
+    if os.environ.get("SDKROOT"):
+        return Path(os.environ["SDKROOT"])
+    if sys.platform != "darwin":
+        return None
+    try:
+        out = subprocess.run(
+            ["xcrun", "--sdk", "macosx", "--show-sdk-path"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return Path(out) if out else None
+
+
 def target_args(target: str) -> list[str]:
     """Nim flags to cross-compile for a zig target triple such as ``aarch64-macos``
     or ``x86_64-linux-gnu.2.17`` (the glibc suffix gives manylinux-compatible output,
@@ -171,12 +187,21 @@ def target_args(target: str) -> list[str]:
     arch, os_name = parts[0], parts[1].partition(".")[0]
     if arch not in ZIG_TO_NIM_CPU or os_name not in ZIG_TO_NIM_OS:
         raise NimlangError(f"unsupported zig target {target!r}")
-    return [
+    args = [
         f"--cpu:{ZIG_TO_NIM_CPU[arch]}",
         f"--os:{ZIG_TO_NIM_OS[os_name]}",
         f"--passC:-target {target}",
         f"--passL:-target {target}",
     ]
+    # With an explicit target zig treats a macOS build as a cross-compile and does
+    # not look in the SDK, so code using system frameworks (std/sysrand, imported
+    # by std/random, needs Security) fails to compile and link. Point it there.
+    if os_name == "macos" and (sdk := macos_sdk()):
+        frameworks = str(sdk / "System" / "Library" / "Frameworks")
+        if " " in frameworks:
+            frameworks = f'"{frameworks}"'
+        args += [f"--passC:-F{frameworks}", f"--passL:-F{frameworks}"]
+    return args
 
 
 def cc_args(target: str | None = None) -> list[str]:

@@ -127,7 +127,9 @@ dependencies = ["nimpy"]
 `uv build` produces a `py3-none-<platform>` wheel that works on every CPython 3 version.
 On Linux it is manylinux-compliant out of the box, and `NIMLANG_TARGET=aarch64-macos uv build`
 cross-builds for other platforms. The demo's CI builds all five platform wheels on one Linux
-machine and tests each on its own OS.
+machine and tests each on its own OS. Code that links a macOS system framework (`std/random`
+needs Security) finds it in the SDK `xcrun` reports on a Mac; to cross-build such code from
+another OS, point `SDKROOT` at a macOS SDK.
 
 ## Related projects
 

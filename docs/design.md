@@ -31,7 +31,7 @@ All of this ran in a Linux x86_64 sandbox with no Nim install, using Nim 2.2.6 a
 
 ### 1. The toolchain wheel (`nimlang`)
 
-Same trick as [ziglang](https://pypi.org/project/ziglang/): a Python package whose platform
+Same trick as [zig-pypi](https://codeberg.org/ziglang/zig-pypi): a Python package whose platform
 wheels contain a compiler distribution. `scripts/make_wheels.py` builds the pure-Python wheel
 and injects a Nim distribution (`bin/`, `lib/`, `config/`) under `nimlang/nim/`, retagged as
 `py3-none-<platform>`. Only `nim` and `atlas` (plus DLLs and

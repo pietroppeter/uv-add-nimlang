@@ -3,11 +3,11 @@
 Use [Nim](https://nim-lang.org) in a Python project with nothing but uv.
 
 `nimlang` is a Python package that ships the Nim compiler in its wheels and compiles C through
-`zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no system
-Nim and no C compiler.
+`zig cc` from [zig-pypi](https://codeberg.org/ziglang/zig-pypi) (PyPI package `ziglang`), so
+you need no system Nim and no C compiler.
 
-This repo is also called nimlang-pypi, the way ziglang's repo is zig-pypi. The PyPI package and
-all commands are `nimlang`. It is not an official Nim project.
+This repo is also called nimlang-pypi, the way the `ziglang` package comes from zig-pypi. The
+PyPI package and all commands are `nimlang`. It is not an official Nim project.
 
 [nimpy](https://github.com/yglukhov/nimpy) is the core Nim dependency: it is the binding
 library that exports Nim procs to Python (`{.exportpy.}`) and lets Nim call Python. Every
@@ -72,8 +72,8 @@ uv run nimlang info          # which Nim and zig are used, and the project's Nim
 On other platforms nimlang uses `$NIMLANG_NIM_HOME` or a `nim` on `PATH`. Choosing the Nim
 version per project is on the [roadmap](ROADMAP.md).
 
-**The C compiler** is `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package,
-installed as a regular dependency.
+**The C compiler** is `zig cc` from [zig-pypi](https://codeberg.org/ziglang/zig-pypi) (PyPI
+package `ziglang`), installed as a regular dependency.
 
 **Nim dependencies** are declared in `pyproject.toml`, next to the Python ones, and pinned in a
 lock file, like uv does for Python packages:

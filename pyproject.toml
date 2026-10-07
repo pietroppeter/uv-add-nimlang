@@ -6,7 +6,10 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 dependencies = [
-    "ziglang>=0.13",
+    # zig is pre-1.0 and zig cc changes between minors (0.16 moved the macOS
+    # default target to 13), so only zig minors tested in CI are allowed. To
+    # move to a new minor: raise the cap, `uv lock`, check CI wheels, release.
+    "ziglang>=0.15,<0.17",
     "tomlkit>=0.12",
 ]
 classifiers = [

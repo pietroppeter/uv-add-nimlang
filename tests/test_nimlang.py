@@ -143,7 +143,11 @@ def test_target_args(monkeypatch):
         "--os:macosx",
         "--passC:-target aarch64-macos",
         "--passL:-target aarch64-macos",
+        f"--passC:-F{_toolchain.STUB_FRAMEWORKS}",
+        f"--passL:-F{_toolchain.STUB_FRAMEWORKS}",
     ]
+    assert (_toolchain.STUB_FRAMEWORKS / "Security.framework" / "Headers" / "SecRandom.h").is_file()
+    assert (_toolchain.STUB_FRAMEWORKS / "Security.framework" / "Security.tbd").is_file()
     with pytest.raises(NimlangError):
         _toolchain.target_args("sparc-solaris")
 

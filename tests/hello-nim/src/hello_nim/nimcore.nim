@@ -8,3 +8,10 @@ proc fib(n: int): int {.exportpy.} =
   for _ in 0 ..< n:
     (a, b) = (b, a + b)
   a
+
+import std/random
+
+proc roll(sides: int): int {.exportpy.} =
+  ## A die roll, seeded by the OS (std/sysrand: the Security framework on macOS).
+  randomize()
+  rand(1 .. sides)

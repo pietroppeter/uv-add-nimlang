@@ -160,6 +160,10 @@ def zigcc_shim() -> Path:
     return shim
 
 
+# Header and .tbd stubs of the macOS frameworks Nim's standard library links.
+STUB_FRAMEWORKS = Path(__file__).resolve().parent / "macos_frameworks"
+
+
 def macos_sdk() -> Path | None:
     """The macOS SDK to find system frameworks in: ``$SDKROOT``, else on a Mac
     the one ``xcrun`` reports. None when neither is available."""
@@ -196,8 +200,11 @@ def target_args(target: str) -> list[str]:
     # With an explicit target zig treats a macOS build as a cross-compile and does
     # not look in the SDK, so code using system frameworks (std/sysrand, imported
     # by std/random, needs Security) fails to compile and link. Point it there.
-    if os_name == "macos" and (sdk := macos_sdk()):
-        frameworks = str(sdk / "System" / "Library" / "Frameworks")
+    # Without an SDK, use nimlang's stub of the part of Security that std/sysrand
+    # needs: the binary links the system's Security framework all the same.
+    if os_name == "macos":
+        sdk = macos_sdk()
+        frameworks = str(sdk / "System" / "Library" / "Frameworks" if sdk else STUB_FRAMEWORKS)
         if " " in frameworks:
             frameworks = f'"{frameworks}"'
         args += [f"--passC:-F{frameworks}", f"--passL:-F{frameworks}"]

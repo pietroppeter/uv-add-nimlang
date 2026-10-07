@@ -6,7 +6,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.9"
 dependencies = [
-    "ziglang>=0.13",
+    "ziglang>=0.15,<0.17",
     "tomlkit>=0.12",
 ]
 classifiers = [

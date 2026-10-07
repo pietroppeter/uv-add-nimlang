@@ -6,6 +6,9 @@ Use [Nim](https://nim-lang.org) in a Python project with nothing but uv.
 `zig cc` from the [ziglang](https://pypi.org/project/ziglang/) package, so you need no system
 Nim and no C compiler.
 
+This repo is also called nimlang-pypi, the way ziglang's repo is zig-pypi. The PyPI package and
+all commands are `nimlang`. It is not an official Nim project.
+
 [nimpy](https://github.com/yglukhov/nimpy) is the core Nim dependency: it is the binding
 library that exports Nim procs to Python (`{.exportpy.}`) and lets Nim call Python. Every
 Nim extension module built with nimlang uses it.
